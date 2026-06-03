@@ -1,0 +1,127 @@
+import cors from '@fastify/cors';
+import staticFiles from '@fastify/static';
+import websocket from '@fastify/websocket';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { AUTH_DISABLED, AUTH_PASSWORD, AUTH_USERNAME, CORS_ORIGIN, DATABASE_FILE, KEYS_DIR } from './config.js';
+import { fileRoutes } from './routes/api/files.js';
+import { systemdRoutes } from './routes/api/systemd.js';
+import { telemetryRoutes } from './routes/api/telemetry.js';
+import { terminalRoutes } from './routes/api/terminal.js';
+import { vncRoutes } from './routes/api/vnc.js';
+import { keyRoutes } from './routes/keys.js';
+import { preferenceRoutes } from './routes/preferences.js';
+import { serverRoutes } from './routes/servers.js';
+import { registerBasicAuth } from './security/basic-auth.js';
+import { registerExpensiveHttpRateLimit } from './security/rate-limit.js';
+import { JsonStore } from './storage/json-store.js';
+import { KeyStore } from './storage/key-store.js';
+import { redactedError } from './utils/api-errors.js';
+
+export async function buildApp() {
+  const app = Fastify({
+    logger: true,
+  });
+
+  const keyStore = new KeyStore(KEYS_DIR);
+  const store = new JsonStore(DATABASE_FILE, keyStore);
+
+  await keyStore.init();
+  await store.init();
+
+  registerSecurityHeaders(app);
+
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode = requestErrorStatusCode(error);
+
+    if (statusCode === 500) {
+      request.log.error({ error: redactedError(error) }, 'Unhandled request error');
+    } else {
+      request.log.warn({ error: redactedError(error) }, 'Rejected request');
+    }
+
+    return reply.code(statusCode).send({
+      error: statusCode === 413 ? 'Payload Too Large' : statusCode === 400 ? 'Bad Request' : 'Request Error',
+      message: statusCode === 500
+        ? 'The request could not be completed.'
+        : statusCode === 413
+          ? 'Request body is too large.'
+          : 'Request rejected.',
+    });
+  });
+
+  await app.register(cors, {
+    origin: CORS_ORIGIN,
+  });
+  await app.register(websocket);
+  registerBasicAuth(app, {
+    username: AUTH_USERNAME,
+    password: AUTH_PASSWORD,
+    disabled: AUTH_DISABLED,
+  });
+  registerExpensiveHttpRateLimit(app);
+
+  app.get('/health', async () => ({ ok: true }));
+  await app.register(serverRoutes, { store, keyStore });
+  await app.register(preferenceRoutes, { store });
+  await app.register(keyRoutes, { keyStore });
+  await app.register(telemetryRoutes, { store, keyStore });
+  await app.register(systemdRoutes, { store, keyStore });
+  await app.register(terminalRoutes, { store, keyStore });
+  await app.register(vncRoutes, { store, keyStore });
+  await app.register(fileRoutes, { store, keyStore });
+  await registerFrontend(app);
+
+  return app;
+}
+
+function registerSecurityHeaders(app: FastifyInstance): void {
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('x-frame-options', 'DENY');
+    reply.header('referrer-policy', 'no-referrer');
+    reply.header('cross-origin-opener-policy', 'same-origin');
+    reply.header('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+
+    if (request.raw.url?.startsWith('/api/')) {
+      reply.header('cache-control', 'no-store');
+    }
+  });
+}
+
+function requestErrorStatusCode(error: unknown): number {
+  if (!error || typeof error !== 'object' || !('statusCode' in error)) {
+    return 500;
+  }
+
+  const statusCode = (error as { statusCode?: unknown }).statusCode;
+  return typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 ? statusCode : 500;
+}
+
+async function registerFrontend(app: FastifyInstance): Promise<void> {
+  const currentFile = fileURLToPath(import.meta.url);
+  const publicDir = path.resolve(path.dirname(currentFile), 'public');
+  const indexFile = path.join(publicDir, 'index.html');
+
+  if (!fs.existsSync(indexFile)) {
+    return;
+  }
+
+  await app.register(staticFiles, {
+    root: publicDir,
+    prefix: '/',
+  });
+
+  app.setNotFoundHandler((request: FastifyRequest, reply: FastifyReply) => {
+    if (request.raw.url?.startsWith('/api/')) {
+      return reply.code(404).send({
+        error: 'Not Found',
+        message: 'API route was not found.',
+      });
+    }
+
+    return reply.sendFile('index.html');
+  });
+}

@@ -1,0 +1,46 @@
+{
+  "name": "home-dashboard-backend",
+  "version": "0.1.0",
+  "description": "Lightweight self-hosted server profile manager for CasaOS deployments.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:server": "tsx watch src/server.ts",
+    "dev:client": "vite --host 0.0.0.0",
+    "build": "npm run build:server && npm run typecheck:client && npm run build:client",
+    "build:server": "tsc",
+    "build:client": "vite build",
+    "typecheck": "npm run build:server && npm run typecheck:client",
+    "typecheck:client": "tsc -p tsconfig.client.json",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@fastify/static": "^9.1.3",
+    "@fastify/websocket": "^11.2.0",
+    "@novnc/novnc": "^1.7.0",
+    "fastify": "^5.2.1",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@types/ssh2": "^1.15.5",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^8.0.14"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

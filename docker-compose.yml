@@ -1,0 +1,46 @@
+name: home-dashboard
+services:
+  home-dashboard:
+    image: home-dashboard
+    build:
+      context: .
+    container_name: home-dashboard
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-3000}
+      CONFIG_DIR: ${CONFIG_DIR:-/config}
+      LOCAL_FILE_ROOT: ${LOCAL_FILE_ROOT:-/config/files}
+      AUTH_DISABLED: ${AUTH_DISABLED:-false}
+      AUTH_USERNAME: ${AUTH_USERNAME:-user}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-change-me}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+    ports:
+      - "${PORT_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - ./config:/config
+    labels:
+      icon: ${APP_ICON_URL:-/icon.svg}
+      io.casaos.app.type: system
+
+x-casaos:
+  architectures:
+    - arm64
+    - amd64
+  author: local
+  category: Utilities
+  description:
+    en_us: Lightweight server dashboard for monitoring and managing Linux hosts over SSH.
+  developer: HomeDashboard
+  icon: ${APP_ICON_URL:-/icon.svg}
+  index: /
+  is_uncontrolled: false
+  main: home-dashboard
+  port_map: "3000"
+  scheme: http
+  store_app_id: home-dashboard
+  tagline:
+    en_us: Monitor and manage your Linux servers over SSH.
+  title:
+    en_us: HomeDashboard
