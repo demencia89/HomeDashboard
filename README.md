@@ -4,14 +4,12 @@ HomeDashboard is a lightweight self-hosted server dashboard for monitoring and m
 
 ## Screenshots
 
-![HomeDashboard overview](docs/screenshots/overview-desktop.png)
+![Fleet overview](docs/screenshots/overview-desktop.png)
 
 <p>
-  <img src="docs/screenshots/containers-desktop.png" alt="Container management" width="49%">
-  <img src="docs/screenshots/services-desktop.png" alt="Service management" width="49%">
+  <img src="docs/screenshots/server-overview-desktop.png" alt="Server overview" width="49%">
+  <img src="docs/screenshots/containers-desktop.png" alt="Container apps" width="49%">
 </p>
-
-<img src="docs/screenshots/overview-mobile.png" alt="Mobile overview" width="360">
 
 ## Quick Start
 
