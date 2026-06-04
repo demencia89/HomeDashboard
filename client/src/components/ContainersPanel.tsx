@@ -77,6 +77,7 @@ export function ContainersPanel({
 
   const containerEntries = dockerContainers.map((container) => ({ server, container }));
   const orderContextKey = containerOrderContextKey(server.id);
+  const containerError = metrics?.containerError;
 
   return (
     <div className="containers-panel">
@@ -97,6 +98,7 @@ export function ContainersPanel({
           <button className="command" onClick={onRefreshMetrics}><RefreshCw size={16} /> Refresh</button>
         </div>
       </div>
+      {containerError && <p className="message container-message">{containerError}</p>}
       <ContainerListing
         entries={containerEntries}
         viewMode={preferences.viewMode}
@@ -111,6 +113,7 @@ export function ContainersPanel({
         onSetAppHidden={(entry, hidden) => setContainerAppHidden(entry.container, hidden)}
         onControlContainer={(_entry, containerId, action) => onControlContainer(containerId, action)}
         onComposeApplied={onRefreshMetrics}
+        emptyMessage={containerError ? 'Docker container data is unavailable for this server.' : undefined}
       />
     </div>
   );
@@ -144,6 +147,12 @@ export function AllContainersPanel({
         || containerStateRank(a.container.state) - containerStateRank(b.container.state)
         || a.container.name.localeCompare(b.container.name),
       );
+  }, [cachedMetrics, servers]);
+  const containerErrors = useMemo(() => {
+    return servers.flatMap((server) => {
+      const containerError = cachedMetrics[server.id]?.containerError;
+      return containerError ? [{ server, message: containerError }] : [];
+    });
   }, [cachedMetrics, servers]);
 
   const refreshAllMetrics = useCallback(async () => {
@@ -214,6 +223,11 @@ export function AllContainersPanel({
         </div>
       </div>
       {message && <p className="message container-message">{message}</p>}
+      {containerErrors.map(({ server, message: containerError }) => (
+        <p className="message container-message" key={server.id}>
+          <strong>{server.alias}:</strong> {containerError}
+        </p>
+      ))}
       <ContainerListing
         entries={entries}
         viewMode={preferences.viewMode}
@@ -224,7 +238,7 @@ export function AllContainersPanel({
         orderByContext={preferences.appOrderByContext}
         onOrderChange={(nextOrder) => runLayoutTransition(() => onPreferencesChange((current) => ({ ...current, appOrderByContext: { ...current.appOrderByContext, [ALL_CONTAINERS_ORDER_CONTEXT_KEY]: nextOrder } })))}
         showServer
-        emptyMessage={servers.length ? 'No Docker container data loaded yet.' : 'No servers configured.'}
+        emptyMessage={servers.length ? (containerErrors.length ? 'Docker container data is unavailable for one or more servers.' : 'No Docker container data loaded yet.') : 'No servers configured.'}
         onSetUrlOverride={setContainerUrlOverride}
         onSetIconOverride={setContainerIconOverride}
         onSetAppHidden={setContainerAppHidden}

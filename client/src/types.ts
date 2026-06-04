@@ -62,6 +62,7 @@ export interface SystemMetrics {
   network: NetworkMetric;
   processes: ProcessMetric[];
   containers: ContainerMetric[];
+  containerError?: string;
   error?: string;
 }
 

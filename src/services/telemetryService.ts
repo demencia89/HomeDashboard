@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import type { ResolvedSshTarget } from './sshConnection.js';
@@ -17,6 +18,7 @@ export interface SystemMetrics {
   network: NetworkMetric;
   processes: ProcessMetric[];
   containers: ContainerMetric[];
+  containerError?: string;
   error?: string;
 }
 
@@ -111,7 +113,11 @@ if command -v docker >/dev/null 2>&1; then
       [ -n "$ports" ] || ports="\${inspect_ports%, }"
       printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "$id" "$name" "$image" "$status" "$ports" "$compose_labels"
     done
+  else
+    printf 'HOMEDASHBOARD_DOCKER_ERROR\\tDocker is installed, but this SSH user cannot run docker ps. Add the user to the docker group, log out/in, or configure passwordless sudo for docker.\\n'
   fi
+else
+  printf 'HOMEDASHBOARD_DOCKER_ERROR\\tDocker CLI was not found on this server.\\n'
 fi
 `.trim();
 
@@ -235,6 +241,7 @@ export function parseTelemetry(raw: string): Omit<SystemMetrics, 'online' | 'err
     network: parseNetwork(netDevStart, netDevEnd),
     processes: parseProcesses(processOutput),
     containers: parseContainers(containerSection),
+    containerError: parseContainerError(containerSection),
   };
 }
 
@@ -292,6 +299,10 @@ function runLocalProcessSnapshot(): Promise<string> {
 }
 
 function runLocalContainerSnapshot(): Promise<string> {
+  if (isContainerRuntime()) {
+    return Promise.resolve(`HOMEDASHBOARD_DOCKER_ERROR\t${localContainerDockerMessage()}`);
+  }
+
   return runLocalShellCommand(DOCKER_SNAPSHOT_COMMAND);
 }
 
@@ -651,6 +662,7 @@ function parseContainers(containerOutput: string): ContainerMetric[] {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
+    .filter((line) => !line.startsWith('HOMEDASHBOARD_DOCKER_ERROR\t'))
     .flatMap((line) => {
       const [id, name, image, status, ports = '', composeProjectRaw, composeServiceRaw, composeWorkingDirRaw, composeConfigFilesRaw] = line.split('\t');
 
@@ -675,6 +687,23 @@ function parseContainers(containerOutput: string): ContainerMetric[] {
         },
       ];
     });
+}
+
+function parseContainerError(containerOutput: string): string | undefined {
+  return containerOutput
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.startsWith('HOMEDASHBOARD_DOCKER_ERROR\t'))
+    ?.slice('HOMEDASHBOARD_DOCKER_ERROR\t'.length)
+    .trim();
+}
+
+function localContainerDockerMessage(): string {
+  return 'HomeDashboard is running inside a container, and a localhost server profile points at the dashboard container instead of the host. Add an SSH profile using the host LAN address to view that host Docker engine.';
+}
+
+function isContainerRuntime(): boolean {
+  return existsSync('/.dockerenv') || process.env.container !== undefined;
 }
 
 function normalizeDockerLabel(value: string | undefined): string | undefined {
