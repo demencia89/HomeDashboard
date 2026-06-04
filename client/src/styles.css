@@ -6417,6 +6417,12 @@ button.vnc-health-chip:disabled {
   border-color: var(--line);
 }
 
+:root[data-theme] .theme-picker select {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 :root[data-theme] :is(.profile-form input:focus, .profile-form textarea:focus, .search-input:focus, .path-row input:focus, .file-editor textarea:focus, .compose-form input:focus, .compose-form select:focus, .compose-service-picker select:focus) {
   border-color: var(--teal);
   box-shadow: var(--focus-ring);
