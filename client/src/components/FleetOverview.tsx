@@ -5,6 +5,7 @@ import { findDiskByMount } from '../lib/disks';
 import { createDragPreview, type DragPreviewHandle } from '../lib/dragPreview';
 import { formatBytes } from '../lib/format';
 import { isValidTerminalDimensions } from '../lib/terminal';
+import { buildWebSocketUrl } from '../lib/websocket';
 import { RefreshRateSelect } from './RefreshRateSelect';
 import { MetricTile } from './MetricTile';
 import { ServerIconBadge } from './ServerIcon';
@@ -693,8 +694,8 @@ export function NethogsDialog({ state, onClose }: { state: NethogsDialogState; o
         },
       });
       const fit = new FitAddon();
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${protocol}//${window.location.host}/api/servers/${state.server.id}/nethogs-shell`);
+      const url = await buildWebSocketUrl(`/api/servers/${state.server.id}/nethogs-shell`);
+      const ws = new WebSocket(url);
       const target = terminalRef.current;
       const observer = new ResizeObserver(() => {
         if (target.offsetParent === null) {

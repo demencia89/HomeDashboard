@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Cable, XCircle } from 'lucide-react';
 import type { ServerProfile } from '../types';
 import { isValidTerminalDimensions } from '../lib/terminal';
+import { buildWebSocketUrl } from '../lib/websocket';
 
 type XTerm = import('@xterm/xterm').Terminal;
 type FitAddon = import('@xterm/addon-fit').FitAddon;
@@ -88,8 +89,8 @@ function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile
         theme: { background: '#101418', foreground: '#d7dde5', cursor: '#64d2ff', selectionBackground: '#2d4f67' },
       });
       const fit = new FitAddon();
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${protocol}//${window.location.host}/api/servers/${server.id}/shell`);
+      const url = await buildWebSocketUrl(`/api/servers/${server.id}/shell`);
+      const ws = new WebSocket(url);
       const target = terminalRef.current;
       const observer = new ResizeObserver(() => {
         if (target.offsetParent === null) {

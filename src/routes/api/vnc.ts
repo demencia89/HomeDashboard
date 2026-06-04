@@ -16,6 +16,7 @@ import { rawDataLength, sendSocketData, sendSocketJson, writeRawData } from '../
 interface VncRoutesOptions {
   store: JsonStore;
   keyStore: KeyStore;
+  webSocketToken: string;
 }
 
 interface VncQuery {
@@ -31,7 +32,7 @@ const MAX_PENDING_INPUT_BYTES = 256 * 1024;
 const VNC_BRIDGE_PORT_RANGES = parseAllowedPortRanges(VNC_ALLOWED_PORTS);
 const VNC_BRIDGE_ALLOWED_HOSTS = new Set(parseAllowedHosts(VNC_ALLOWED_HOSTS));
 
-export const vncRoutes: FastifyPluginAsync<VncRoutesOptions> = async (fastify, { store, keyStore }) => {
+export const vncRoutes: FastifyPluginAsync<VncRoutesOptions> = async (fastify, { store, keyStore, webSocketToken }) => {
   fastify.get<{ Params: { id: string } }>('/api/servers/:id/vnc/status', async (request, reply) => {
     try {
       const result = await getVncStatus(store, keyStore, request.params.id);
@@ -145,7 +146,7 @@ export const vncRoutes: FastifyPluginAsync<VncRoutesOptions> = async (fastify, {
   });
 
   fastify.get<{ Params: { id: string }; Querystring: VncQuery }>('/api/servers/:id/vnc/socket', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'VNC bridge')) {
+    if (!acceptWebSocketConnection(request, socket, 'VNC bridge', webSocketToken)) {
       return;
     }
 

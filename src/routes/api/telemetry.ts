@@ -14,6 +14,7 @@ import { parseStrictInteger } from '../../utils/strict-integer.js';
 interface TelemetryRoutesOptions {
   store: JsonStore;
   keyStore: KeyStore;
+  webSocketToken: string;
 }
 
 interface ContainerLogsQuery {
@@ -28,7 +29,7 @@ interface MetricsQuery {
   refresh?: string;
 }
 
-export const telemetryRoutes: FastifyPluginAsync<TelemetryRoutesOptions> = async (fastify, { store, keyStore }) => {
+export const telemetryRoutes: FastifyPluginAsync<TelemetryRoutesOptions> = async (fastify, { store, keyStore, webSocketToken }) => {
   const metricsHub = new MetricsStreamHub(store, keyStore);
 
   fastify.addHook('onClose', (_instance, done) => {
@@ -37,7 +38,7 @@ export const telemetryRoutes: FastifyPluginAsync<TelemetryRoutesOptions> = async
   });
 
   fastify.get('/api/metrics/stream', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'Metrics stream')) {
+    if (!acceptWebSocketConnection(request, socket, 'Metrics stream', webSocketToken)) {
       return;
     }
 

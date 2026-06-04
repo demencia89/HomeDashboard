@@ -3,6 +3,7 @@ import { ExternalLink, Keyboard, Maximize2, Minimize2, Power, RefreshCw, ZoomIn,
 import type RFB from '@novnc/novnc';
 import type { ServerProfile, SystemdServiceAction, VncServiceCandidate, VncStatusResponse } from '../types';
 import { controlSystemdService, controlVncService, getVncStatus } from '../lib/api';
+import { buildWebSocketUrl } from '../lib/websocket';
 import {
   connectionButtonLabel,
   connectionLabel,
@@ -293,12 +294,16 @@ export function VncPanel({
     setLastDisconnectUnexpected(false);
     setConnectionState('connecting');
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/servers/${server.id}/vnc/socket?host=${encodeURIComponent(host.trim() || '127.0.0.1')}&port=${portNumber}`;
     let rfb: RFB;
 
     try {
-      const { default: RfbClient } = await import('@novnc/novnc');
+      const [{ default: RfbClient }, url] = await Promise.all([
+        import('@novnc/novnc'),
+        buildWebSocketUrl(`/api/servers/${server.id}/vnc/socket`, {
+          host: host.trim() || '127.0.0.1',
+          port: portNumber,
+        }),
+      ]);
       rfb = new RfbClient(viewerRef.current, url, {
         credentials: password ? { password } : undefined,
       });

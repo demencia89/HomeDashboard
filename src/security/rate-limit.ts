@@ -1,8 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import crypto from 'node:crypto';
 import type { WebSocket } from 'ws';
 import {
   AUTH_FAILURE_RATE_LIMIT_MAX,
   AUTH_FAILURE_RATE_LIMIT_WINDOW_MS,
+  CORS_ORIGIN,
   EXPENSIVE_HTTP_RATE_LIMIT_MAX,
   EXPENSIVE_HTTP_RATE_LIMIT_WINDOW_MS,
   WS_CONNECTION_RATE_LIMIT_MAX,
@@ -36,6 +38,10 @@ const websocketConnectionsByIp = new Map<string, number>();
 let authFailureLimiter: FixedWindowRateLimiter | undefined;
 let expensiveHttpLimiter: FixedWindowRateLimiter | undefined;
 let websocketConnectionLimiter: FixedWindowRateLimiter | undefined;
+
+export function createWebSocketToken(): string {
+  return crypto.randomBytes(32).toString('base64url');
+}
 
 export class FixedWindowRateLimiter {
   private readonly buckets = new Map<string, Bucket>();
@@ -140,7 +146,25 @@ export function registerExpensiveHttpRateLimit(app: FastifyInstance): void {
   });
 }
 
-export function acceptWebSocketConnection(request: FastifyRequest, socket: WebSocket, label: string): boolean {
+export function acceptWebSocketConnection(request: FastifyRequest, socket: WebSocket, label: string, token: string): boolean {
+  if (!isAllowedWebSocketOrigin(request)) {
+    sendSocketJson(socket, {
+      type: 'error',
+      message: `${label} origin rejected.`,
+    });
+    socket.close(1008, `${label} origin rejected.`);
+    return false;
+  }
+
+  if (!isValidWebSocketToken(request, token)) {
+    sendSocketJson(socket, {
+      type: 'error',
+      message: `${label} token rejected.`,
+    });
+    socket.close(1008, `${label} token rejected.`);
+    return false;
+  }
+
   const key = rateLimitKey(request);
   const result = getWebsocketConnectionLimiter().consume(key);
 
@@ -256,6 +280,68 @@ function isExpensiveHttpRoute(request: FastifyRequest): boolean {
 
 function rateLimitKey(request: FastifyRequest): string {
   return request.ip || request.socket.remoteAddress || 'unknown';
+}
+
+function isAllowedWebSocketOrigin(request: FastifyRequest): boolean {
+  const origin = normalizedOrigin(singleHeaderValue(request.headers.origin));
+
+  if (!origin) {
+    return false;
+  }
+
+  if (Array.isArray(CORS_ORIGIN) && CORS_ORIGIN.length > 0) {
+    return CORS_ORIGIN.some((allowedOrigin) => normalizedOrigin(allowedOrigin) === origin);
+  }
+
+  return sameHostOrigins(request).has(origin);
+}
+
+function sameHostOrigins(request: FastifyRequest): Set<string> {
+  const hosts = [
+    singleHeaderValue(request.headers.host),
+    singleHeaderValue(request.headers['x-forwarded-host']),
+  ].filter((host): host is string => Boolean(host));
+
+  const origins = new Set<string>();
+
+  for (const host of hosts) {
+    origins.add(`http://${host}`);
+    origins.add(`https://${host}`);
+  }
+
+  return origins;
+}
+
+function isValidWebSocketToken(request: FastifyRequest, expectedToken: string): boolean {
+  const token = new URL(request.url, 'http://homedashboard.local').searchParams.get('token') ?? '';
+
+  if (!token || !expectedToken || token.length !== expectedToken.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+}
+
+function normalizedOrigin(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const origin = new URL(value);
+
+    if (origin.protocol !== 'http:' && origin.protocol !== 'https:') {
+      return undefined;
+    }
+
+    return origin.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function singleHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function sendSocketJson(socket: WebSocket, payload: unknown): void {

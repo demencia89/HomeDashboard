@@ -10,6 +10,7 @@ import { rawDataLength, rawDataToString, sendSocketData, sendSocketJson } from '
 interface TerminalRoutesOptions {
   store: JsonStore;
   keyStore: KeyStore;
+  webSocketToken: string;
 }
 
 interface ResizeMessage {
@@ -43,9 +44,9 @@ else
 fi
 `.trim();
 
-export const terminalRoutes: FastifyPluginAsync<TerminalRoutesOptions> = async (fastify, { store, keyStore }) => {
+export const terminalRoutes: FastifyPluginAsync<TerminalRoutesOptions> = async (fastify, { store, keyStore, webSocketToken }) => {
   fastify.get<{ Params: { id: string } }>('/api/servers/:id/shell', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'Terminal')) {
+    if (!acceptWebSocketConnection(request, socket, 'Terminal', webSocketToken)) {
       return;
     }
 
@@ -53,7 +54,7 @@ export const terminalRoutes: FastifyPluginAsync<TerminalRoutesOptions> = async (
   });
 
   fastify.get<{ Params: { id: string } }>('/api/servers/:id/nethogs-shell', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'NetHogs terminal')) {
+    if (!acceptWebSocketConnection(request, socket, 'NetHogs terminal', webSocketToken)) {
       return;
     }
 

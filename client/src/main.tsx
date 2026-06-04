@@ -39,6 +39,7 @@ import {
   updateContainerPreferences,
 } from './lib/preferences';
 import { runLayoutTransition } from './lib/viewTransition';
+import { buildWebSocketUrl } from './lib/websocket';
 import { registerServiceWorker } from './lib/pwa';
 import { AllContainersPanel, ContainersPanel } from './components/ContainersPanel';
 import { FilesPanel } from './components/FilesPanel';
@@ -242,37 +243,48 @@ function App() {
         return;
       }
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${protocol}//${window.location.host}/api/metrics/stream`);
-      metricsSocketRef.current = socket;
+      void buildWebSocketUrl('/api/metrics/stream')
+        .then((url) => {
+          if (cancelled) {
+            return;
+          }
 
-      socket.addEventListener('open', () => {
-        socket.send(JSON.stringify({ type: 'subscribe', serverIds, intervalMs: metricsStreamRefreshRate }));
-      });
+          const socket = new WebSocket(url);
+          metricsSocketRef.current = socket;
 
-      socket.addEventListener('message', (event) => {
-        const message = parseMetricsStreamMessage(event.data);
+          socket.addEventListener('open', () => {
+            socket.send(JSON.stringify({ type: 'subscribe', serverIds, intervalMs: metricsStreamRefreshRate }));
+          });
 
-        if (message?.type !== 'metrics:update') {
-          return;
-        }
+          socket.addEventListener('message', (event) => {
+            const message = parseMetricsStreamMessage(event.data);
 
-        setMetricsByServer((current) => ({ ...current, [message.serverId]: mergeMetricsSnapshot(current[message.serverId], message.metrics) }));
-      });
+            if (message?.type !== 'metrics:update') {
+              return;
+            }
 
-      socket.addEventListener('close', () => {
-        if (metricsSocketRef.current === socket) {
-          metricsSocketRef.current = null;
-        }
+            setMetricsByServer((current) => ({ ...current, [message.serverId]: mergeMetricsSnapshot(current[message.serverId], message.metrics) }));
+          });
 
-        if (!cancelled) {
-          reconnectTimer = window.setTimeout(connect, 2000);
-        }
-      });
+          socket.addEventListener('close', () => {
+            if (metricsSocketRef.current === socket) {
+              metricsSocketRef.current = null;
+            }
 
-      socket.addEventListener('error', () => {
-        socket.close();
-      });
+            if (!cancelled) {
+              reconnectTimer = window.setTimeout(connect, 2000);
+            }
+          });
+
+          socket.addEventListener('error', () => {
+            socket.close();
+          });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            reconnectTimer = window.setTimeout(connect, 2000);
+          }
+        });
     };
 
     connect();

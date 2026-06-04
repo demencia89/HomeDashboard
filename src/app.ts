@@ -15,18 +15,31 @@ import { keyRoutes } from './routes/keys.js';
 import { preferenceRoutes } from './routes/preferences.js';
 import { serverRoutes } from './routes/servers.js';
 import { registerBasicAuth } from './security/basic-auth.js';
-import { registerExpensiveHttpRateLimit } from './security/rate-limit.js';
+import { createWebSocketToken, registerExpensiveHttpRateLimit } from './security/rate-limit.js';
 import { JsonStore } from './storage/json-store.js';
 import { KeyStore } from './storage/key-store.js';
 import { redactedError } from './utils/api-errors.js';
 
 export async function buildApp() {
   const app = Fastify({
-    logger: true,
+    logger: {
+      serializers: {
+        req(request) {
+          return {
+            method: request.method,
+            url: redactWebSocketToken(request.url),
+            host: request.headers.host,
+            remoteAddress: request.ip,
+            remotePort: request.socket.remotePort,
+          };
+        },
+      },
+    },
   });
 
   const keyStore = new KeyStore(KEYS_DIR);
   const store = new JsonStore(DATABASE_FILE, keyStore);
+  const webSocketToken = createWebSocketToken();
 
   await keyStore.init();
   await store.init();
@@ -64,17 +77,32 @@ export async function buildApp() {
   registerExpensiveHttpRateLimit(app);
 
   app.get('/health', async () => ({ ok: true }));
+  app.get('/api/ws-token', async () => ({ token: webSocketToken }));
   await app.register(serverRoutes, { store, keyStore });
   await app.register(preferenceRoutes, { store });
   await app.register(keyRoutes, { keyStore });
-  await app.register(telemetryRoutes, { store, keyStore });
+  await app.register(telemetryRoutes, { store, keyStore, webSocketToken });
   await app.register(systemdRoutes, { store, keyStore });
-  await app.register(terminalRoutes, { store, keyStore });
-  await app.register(vncRoutes, { store, keyStore });
+  await app.register(terminalRoutes, { store, keyStore, webSocketToken });
+  await app.register(vncRoutes, { store, keyStore, webSocketToken });
   await app.register(fileRoutes, { store, keyStore });
   await registerFrontend(app);
 
   return app;
+}
+
+function redactWebSocketToken(url: string): string {
+  try {
+    const parsed = new URL(url, 'http://homedashboard.local');
+
+    if (parsed.searchParams.has('token')) {
+      parsed.searchParams.set('token', '[redacted]');
+    }
+
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url.replace(/([?&]token=)[^&]+/g, '$1[redacted]');
+  }
 }
 
 function registerSecurityHeaders(app: FastifyInstance): void {
