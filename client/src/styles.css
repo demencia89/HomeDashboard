@@ -3863,6 +3863,34 @@ button.vnc-health-chip:disabled {
   filter: grayscale(1) saturate(0) drop-shadow(0 10px 14px rgba(148, 163, 184, 0.16));
 }
 
+.container-app-status-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  z-index: 3;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: #6b7280;
+  box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.12);
+}
+
+.container-app-status-dot.online {
+  background: var(--status-green);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--status-green) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--status-green) 46%, transparent);
+  animation: online-pulse 2.8s ease-in-out infinite;
+}
+
+.container-app-status-dot.offline {
+  background: var(--status-red);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--status-red) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--status-red) 44%, transparent);
+}
+
 .container-app-server-badge {
   position: absolute;
   top: -7px;
@@ -5957,6 +5985,24 @@ button.vnc-health-chip:disabled {
   --theme-panel-flat: color-mix(in srgb, var(--surface) 86%, transparent);
   --theme-panel-subtle: color-mix(in srgb, var(--surface) 72%, #000000);
   --theme-panel-hover: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  --theme-fleet-card: linear-gradient(180deg, color-mix(in srgb, var(--surface) 58%, #000000), color-mix(in srgb, var(--surface) 42%, #000000));
+  --theme-fleet-card-hover: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 66%, #000000), color-mix(in srgb, var(--surface) 50%, #000000));
+  --theme-fleet-card-line: color-mix(in srgb, var(--line) 74%, #000000);
+  --theme-fleet-card-hover-line: color-mix(in srgb, var(--purple) 26%, var(--line));
+  --theme-fleet-card-shadow:
+    0 16px 36px color-mix(in srgb, #000000 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 3%, transparent);
+  --theme-fleet-card-hover-shadow:
+    0 20px 42px color-mix(in srgb, #000000 28%, transparent),
+    0 0 28px color-mix(in srgb, var(--purple) 8%, transparent);
+  --theme-server-card: linear-gradient(180deg, color-mix(in srgb, var(--surface) 64%, #000000), color-mix(in srgb, var(--surface) 50%, #000000));
+  --theme-server-card-hover: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 68%, #000000), color-mix(in srgb, var(--surface) 56%, #000000));
+  --theme-server-card-active: linear-gradient(90deg, color-mix(in srgb, var(--purple) 18%, transparent), transparent 38%), var(--theme-server-card);
+  --theme-server-card-line: color-mix(in srgb, var(--line) 76%, #000000);
+  --theme-server-card-hover-line: color-mix(in srgb, var(--purple) 30%, var(--line));
+  --theme-server-card-active-line: color-mix(in srgb, var(--purple) 44%, var(--line));
+  --theme-server-card-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 3%, transparent);
+  --theme-server-card-active-shadow: inset 3px 0 0 var(--purple), 0 10px 24px color-mix(in srgb, var(--purple) 10%, transparent);
   --theme-control: linear-gradient(180deg, var(--surface-2), color-mix(in srgb, var(--surface) 86%, #000000));
   --theme-control-hover: linear-gradient(180deg, var(--surface-3), var(--surface-2));
   --theme-input: color-mix(in srgb, var(--surface) 74%, #000000);
@@ -5974,6 +6020,51 @@ button.vnc-health-chip:disabled {
   --compact-temp-color: color-mix(in srgb, var(--red) 86%, var(--text));
   --compact-disk-color: color-mix(in srgb, var(--amber) 88%, var(--text));
   --compact-network-color: color-mix(in srgb, var(--purple) 82%, var(--blue));
+}
+
+:root[data-theme='neo'] {
+  --theme-fleet-card: linear-gradient(180deg, #0c1218, #070b10);
+  --theme-fleet-card-hover: linear-gradient(180deg, #101922, #0a1017);
+  --theme-fleet-card-line: transparent;
+  --theme-fleet-card-hover-line: transparent;
+  --theme-fleet-card-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  --theme-fleet-card-hover-shadow:
+    0 22px 46px rgba(0, 0, 0, 0.38),
+    0 0 24px rgba(45, 212, 191, 0.06);
+  --theme-server-card: linear-gradient(180deg, #0f161d, #090f15);
+  --theme-server-card-hover: linear-gradient(180deg, #121c25, #0c131a);
+  --theme-server-card-active: linear-gradient(90deg, rgba(45, 212, 191, 0.16), rgba(88, 166, 255, 0.08) 42%, transparent), var(--theme-server-card);
+  --theme-server-card-line: transparent;
+  --theme-server-card-hover-line: transparent;
+  --theme-server-card-active-line: transparent;
+  --theme-server-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  --theme-server-card-active-shadow:
+    inset 3px 0 0 var(--teal),
+    0 10px 24px rgba(45, 212, 191, 0.09);
+}
+
+:root[data-theme='minimal'] {
+  --theme-fleet-card: linear-gradient(180deg, rgba(239, 244, 251, 0.92), rgba(222, 230, 241, 0.94));
+  --theme-fleet-card-hover: linear-gradient(180deg, rgba(232, 239, 249, 0.96), rgba(214, 224, 238, 0.98));
+  --theme-fleet-card-line: rgba(111, 124, 145, 0.24);
+  --theme-fleet-card-hover-line: rgba(87, 102, 126, 0.34);
+  --theme-fleet-card-shadow:
+    0 12px 28px rgba(18, 24, 38, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  --theme-fleet-card-hover-shadow:
+    0 16px 34px rgba(18, 24, 38, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  --theme-server-card: linear-gradient(180deg, rgba(248, 250, 253, 0.68), rgba(232, 238, 247, 0.74));
+  --theme-server-card-hover: rgba(250, 252, 255, 0.78);
+  --theme-server-card-active: linear-gradient(135deg, rgba(221, 237, 255, 0.84), rgba(236, 246, 255, 0.74));
+  --theme-server-card-line: rgba(130, 142, 160, 0.18);
+  --theme-server-card-hover-line: rgba(94, 109, 130, 0.26);
+  --theme-server-card-active-line: rgba(0, 122, 255, 0.42);
+  --theme-server-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+  --theme-server-card-active-shadow:
+    inset 3px 0 0 #007aff,
+    0 8px 18px rgba(0, 122, 255, 0.08);
 }
 
 :root[data-theme] body {
@@ -6048,6 +6139,44 @@ button.vnc-health-chip:disabled {
 :root[data-theme] :is(.server-row:hover, .fleet-row:hover, .fleet-card:hover, .process-row:not(.header):hover, .container-row:not(.header):hover, .file-row:hover) {
   background: var(--theme-panel-hover);
   border-color: color-mix(in srgb, var(--purple) 30%, var(--line));
+}
+
+:root[data-theme] :is(.server-row, .fleet-row) {
+  background: var(--theme-server-card);
+  border-color: var(--theme-server-card-line);
+  box-shadow: var(--theme-server-card-shadow);
+}
+
+:root[data-theme] :is(.server-row.active, .fleet-row.active) {
+  background: var(--theme-server-card-active);
+  border-color: var(--theme-server-card-active-line);
+  box-shadow: var(--theme-server-card-active-shadow);
+}
+
+:root[data-theme] :is(.server-row:hover, .fleet-row:hover) {
+  background: var(--theme-server-card-hover);
+  border-color: var(--theme-server-card-hover-line);
+}
+
+:root[data-theme] :is(.server-row.active:hover, .fleet-row.active:hover) {
+  background: var(--theme-server-card-active);
+  border-color: var(--theme-server-card-active-line);
+}
+
+:root[data-theme] .fleet-card {
+  background: var(--theme-fleet-card);
+  border-color: var(--theme-fleet-card-line);
+  box-shadow: var(--theme-fleet-card-shadow);
+}
+
+:root[data-theme] .fleet-card:hover {
+  background: var(--theme-fleet-card-hover);
+  border-color: var(--theme-fleet-card-hover-line);
+  box-shadow: var(--theme-fleet-card-hover-shadow);
+}
+
+:root[data-theme='neo'] .fleet-card::after {
+  box-shadow: none;
 }
 
 :root[data-theme] :is(.process-row.header, .container-row.header, .service-row.header, .file-row.header, .temperature-row.header) {
@@ -6188,6 +6317,112 @@ button.vnc-health-chip:disabled {
 
 :root[data-theme] .compact-metric-icon.network {
   color: var(--compact-network-color);
+}
+
+:root[data-theme] .fleet-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 82%, #000000), color-mix(in srgb, var(--surface) 68%, #000000)) !important;
+  border-color: color-mix(in srgb, var(--line) 82%, transparent) !important;
+  box-shadow:
+    0 12px 26px color-mix(in srgb, #000000 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) !important;
+}
+
+:root[data-theme] .fleet-card:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 82%, #000000), color-mix(in srgb, var(--surface) 72%, #000000)) !important;
+  border-color: color-mix(in srgb, var(--line) 92%, transparent) !important;
+}
+
+:root[data-theme='minimal'] .fleet-card {
+  background: linear-gradient(180deg, rgba(240, 245, 251, 0.94), rgba(224, 233, 244, 0.96)) !important;
+  border-color: rgba(111, 124, 145, 0.2) !important;
+}
+
+:root[data-theme='minimal'] .fleet-card:hover {
+  background: linear-gradient(180deg, rgba(235, 243, 251, 0.98), rgba(216, 228, 242, 0.98)) !important;
+}
+
+:root[data-theme='neo'] :is(.server-row, .server-row.active, .fleet-row, .fleet-row.active, .fleet-card, .fleet-card.drag-over) {
+  border: 1px solid rgba(148, 163, 184, 0.13) !important;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.026) !important;
+}
+
+:root[data-theme='neo'] :is(.server-row:hover, .server-row.active:hover, .fleet-row:hover, .fleet-row.active:hover, .fleet-card:hover) {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+:root[data-theme='neo'] .fleet-card {
+  background: linear-gradient(180deg, #121922, #0e141b) !important;
+}
+
+:root[data-theme='neo'] .fleet-card:hover {
+  background: linear-gradient(180deg, #151f29, #111820) !important;
+}
+
+:root[data-theme='neo'] :is(.server-row, .fleet-row) {
+  background: linear-gradient(180deg, #131b24, #0f151d) !important;
+}
+
+:root[data-theme='neo'] :is(.server-row:hover, .fleet-row:hover) {
+  background: linear-gradient(180deg, #17212b, #121922) !important;
+}
+
+:root[data-theme='neo'] :is(.server-row.active, .fleet-row.active, .server-row.active:hover, .fleet-row.active:hover) {
+  background:
+    linear-gradient(90deg, rgba(45, 212, 191, 0.11), transparent 38%),
+    linear-gradient(180deg, #14202a, #101720) !important;
+  border-color: rgba(45, 212, 191, 0.24) !important;
+  box-shadow:
+    inset 3px 0 0 rgba(45, 212, 191, 0.72),
+    0 10px 22px rgba(0, 0, 0, 0.18) !important;
+}
+
+:root[data-theme='neo'] :is(.profile-panel, .main-panel, .panel-toolbar, .fleet-header, .overview-hero, .overview-section, .test-result, .overview-layout-toolbar, .disk-row, .process-table, .container-table, .service-table, .container-logs-panel, .nethogs-modal, .temperature-modal, .compose-modal, .service-help-modal, .file-table, .temperature-table, .compose-form-section, .fleet-card-details.compact) {
+  border-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+:root[data-theme='neo'] :is(.theme-picker, .refresh-picker, .command, .icon-command, .segmented button, .tabs button, .section-icon-button, .container-action, .sidebar-restore-tab, .sidebar-collapse-tab) {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+:root[data-theme='neo'] :is(.theme-picker:hover, .refresh-picker:hover, .command:hover, .icon-command:hover, .segmented button:hover, .tabs button:hover, .section-icon-button:hover:not(:disabled), .sidebar-restore-tab:hover, .sidebar-collapse-tab:hover) {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+:root[data-theme='neo'] .command.full {
+  color: var(--text);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 88%, #000000), color-mix(in srgb, var(--surface) 90%, #000000)) !important;
+  border-color: color-mix(in srgb, var(--line) 92%, transparent) !important;
+  box-shadow:
+    0 8px 18px color-mix(in srgb, #000000 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) !important;
+}
+
+:root[data-theme='neo'] .command.full:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-3) 84%, #000000), color-mix(in srgb, var(--surface-2) 88%, #000000)) !important;
+  border-color: color-mix(in srgb, var(--line) 100%, var(--purple)) !important;
+}
+
+:root[data-theme='catppuccin'] .command.full {
+  color: #f5e0dc;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #cba6f7 26%, #242438), color-mix(in srgb, #89b4fa 16%, #1e1e2e)) !important;
+  border-color: color-mix(in srgb, #cba6f7 34%, var(--line)) !important;
+  box-shadow:
+    0 8px 18px rgba(17, 17, 27, 0.22),
+    inset 0 1px 0 rgba(245, 224, 220, 0.06) !important;
+}
+
+:root[data-theme='catppuccin'] .command.full:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #cba6f7 32%, #313244), color-mix(in srgb, #89b4fa 20%, #242438)) !important;
+  border-color: color-mix(in srgb, #cba6f7 46%, var(--line)) !important;
 }
 
 :root[data-theme] .container-name-link:not(:disabled):hover {

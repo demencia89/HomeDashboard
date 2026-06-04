@@ -243,7 +243,7 @@ function ServiceTable({
   );
 }
 
-function SystemServicesHelpDialog({
+export function SystemServicesHelpDialog({
   onClose,
 }: {
   onClose: () => void;

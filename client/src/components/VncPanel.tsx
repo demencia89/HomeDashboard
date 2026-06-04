@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type MutableRefObject, type RefObject } from 'react';
-import { ExternalLink, Keyboard, Maximize2, Minimize2, Power, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { CircleHelp, ExternalLink, Keyboard, Maximize2, Minimize2, Power, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import type RFB from '@novnc/novnc';
 import type { ServerProfile, SystemdServiceAction, VncServiceCandidate, VncStatusResponse } from '../types';
 import { controlSystemdService, controlVncService, getVncStatus } from '../lib/api';
@@ -15,6 +15,7 @@ import {
   serviceKey,
   type VncConnectionState,
 } from '../lib/vnc';
+import { SystemServicesHelpDialog } from './ServicesPanel';
 
 type VncViewerMode = 'fit' | 'native-follow' | 'height-follow';
 type ViewportRfb = RFB & {
@@ -68,6 +69,7 @@ export function VncPanel({
   const [pendingServiceAction, setPendingServiceAction] = useState<SystemdServiceAction | ''>('');
   const [selectedGraphicalServiceKey, setSelectedGraphicalServiceKey] = useState('');
   const [pendingGraphicalServiceAction, setPendingGraphicalServiceAction] = useState<SystemdServiceAction | ''>('');
+  const [systemServicesHelpOpen, setSystemServicesHelpOpen] = useState(false);
   const connected = connectionState === 'connected';
   const viewerMode: VncViewerMode = popout && viewerMagnified ? 'height-follow' : viewerMagnified ? 'native-follow' : 'fit';
 
@@ -136,7 +138,7 @@ export function VncPanel({
   }, [viewOnly]);
 
   useEffect(() => {
-    const vncServices = prioritizeVncServices(status?.services ?? []);
+    const vncServices = prioritizeVncServices(filterMaskedServices(status?.services ?? []));
 
     if (!vncServices.length) {
       if (selectedServiceKey) {
@@ -154,7 +156,7 @@ export function VncPanel({
   }, [selectedServiceKey, status]);
 
   useEffect(() => {
-    const graphicalServices = prioritizeGraphicalServices(status?.graphicalServices ?? []);
+    const graphicalServices = prioritizeGraphicalServices(filterMaskedServices(status?.graphicalServices ?? []));
 
     if (!graphicalServices.length) {
       if (selectedGraphicalServiceKey) {
@@ -453,9 +455,9 @@ export function VncPanel({
     return <div className="empty-state">No server selected.</div>;
   }
 
-  const services = status?.services ?? [];
+  const services = filterMaskedServices(status?.services ?? []);
   const vncServices = prioritizeVncServices(services);
-  const graphicalServices = prioritizeGraphicalServices(status?.graphicalServices ?? []);
+  const graphicalServices = prioritizeGraphicalServices(filterMaskedServices(status?.graphicalServices ?? []));
   const listeners = status?.listeners ?? [];
   const selectedService = vncServices.find((service) => serviceKey(service) === selectedServiceKey)
     ?? vncServices.find((service) => service.activeState === 'active')
@@ -532,6 +534,9 @@ export function VncPanel({
           <button type="button" className="command" onClick={() => void loadStatus()} disabled={loading} title="Refresh VNC status">
             <RefreshCw size={16} className={loading ? 'spin-icon' : undefined} /> Refresh
           </button>
+          <button type="button" className="icon-command" title="System services setup" aria-label="System services setup" onClick={() => setSystemServicesHelpOpen(true)}>
+            <CircleHelp size={16} />
+          </button>
           <button
             type="button"
             className={`vnc-connect-button ${vncReady && !connected ? 'ready' : ''} ${connected ? 'connected' : ''}`}
@@ -545,6 +550,9 @@ export function VncPanel({
       </div>
 
       {message && <p className="message container-message">{message}</p>}
+      {systemServicesHelpOpen && (
+        <SystemServicesHelpDialog onClose={() => setSystemServicesHelpOpen(false)} />
+      )}
 
       <div className="vnc-health-row">
         {selectedService ? (
@@ -731,6 +739,10 @@ function prioritizeGraphicalServices(services: VncServiceCandidate[]): VncServic
     || serviceStateRank(a) - serviceStateRank(b)
     || a.name.localeCompare(b.name)
     || a.scope.localeCompare(b.scope));
+}
+
+function filterMaskedServices(services: VncServiceCandidate[]): VncServiceCandidate[] {
+  return services.filter((service) => service.unitFileState !== 'masked');
 }
 
 function graphicalServicePriority(service: VncServiceCandidate): number {

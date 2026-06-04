@@ -625,6 +625,11 @@ function ContainerListing({
                           <span>{containerInitials(container.name)}</span>
                         )}
                       </span>
+                      <span
+                        className={`container-app-status-dot ${container.state === 'running' ? 'online' : 'offline'}`}
+                        title={`${container.name} is ${container.state}`}
+                        aria-hidden="true"
+                      />
                     </span>
                     <strong>{container.name}</strong>
                     {!showServer && <small>{container.image}</small>}

@@ -137,9 +137,31 @@ async function registerFrontend(app: FastifyInstance): Promise<void> {
     return;
   }
 
+  app.addHook('onSend', (request, reply, _payload, done) => {
+    const requestPath = request.raw.url?.split('?')[0] ?? '';
+    const acceptsHtml = String(request.headers.accept ?? '').includes('text/html');
+
+    if (requestPath === '/' || requestPath === '/index.html' || requestPath === '/service-worker.js' || (acceptsHtml && !requestPath.startsWith('/api/'))) {
+      reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      reply.header('Pragma', 'no-cache');
+      reply.header('Expires', '0');
+    }
+
+    done();
+  });
+
   await app.register(staticFiles, {
     root: publicDir,
     prefix: '/',
+    setHeaders(response, filePath) {
+      const fileName = path.basename(filePath);
+
+      if (fileName === 'service-worker.js' || fileName === 'index.html') {
+        response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        response.setHeader('Pragma', 'no-cache');
+        response.setHeader('Expires', '0');
+      }
+    },
   });
 
   app.setNotFoundHandler((request: FastifyRequest, reply: FastifyReply) => {
