@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client';
 import {
   Activity,
   ArrowLeft,
+  BellRing,
   Container,
+  Download,
   Edit3,
   ExternalLink,
   Folder,
   HardDrive,
+  Image,
   Monitor,
   Network,
   Palette,
@@ -20,12 +23,13 @@ import {
   Thermometer,
   Trash2,
   Wrench,
+  X,
   XCircle,
 } from 'lucide-react';
 import './styles.css';
 import { emptyForm, METRICS_SESSION_KEY, SERVER_VIEW_SESSION_KEY } from './constants';
-import type { ActiveView, AppPreferences, AppTheme, ContainerPreferences, RefreshRate, ServerFormState, ServerProfile, SystemMetrics, TemperatureReading } from './types';
-import { buildPayload, controlContainer, killProcess } from './lib/api';
+import type { ActiveView, AppPreferences, AppTheme, AppVersionInfo, AppWallpaperInfo, ContainerPreferences, RefreshRate, ServerFormState, ServerProfile, SystemMetrics, TemperatureReading } from './types';
+import { buildPayload, controlContainer, fetchAppVersion, fetchAppWallpaper, killProcess, saveAppWallpaper } from './lib/api';
 import { isActiveView, mergeMetricsSnapshot, normalizeServerOrder, orderServers, parseMetricsStreamMessage, viewTransitionName, viewUsesMetrics } from './lib/appState';
 import { removeRecordKey } from './lib/records';
 import { readSessionRecord, writeSessionRecord } from './lib/storage';
@@ -63,6 +67,8 @@ import { ServicesPanel } from './components/ServicesPanel';
 import { TerminalSessions } from './components/TerminalPanel';
 import { VncPanel } from './components/VncPanel';
 
+const DISMISSED_UPDATE_VERSION_KEY = 'homedashboard.dismissedUpdateVersion';
+
 registerServiceWorker();
 
 function App() {
@@ -76,6 +82,10 @@ function App() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const [preferences, setPreferences] = useState<AppPreferences>(() => defaultAppPreferences());
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [appVersion, setAppVersion] = useState<AppVersionInfo | undefined>();
+  const [appWallpaper, setAppWallpaper] = useState<AppWallpaperInfo>({ exists: false });
+  const [wallpaperUploading, setWallpaperUploading] = useState(false);
+  const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState(() => readDismissedUpdateVersion());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const lastSavedPreferencesRef = useRef('');
@@ -84,6 +94,9 @@ function App() {
   const orderedServers = useMemo(() => orderServers(servers, preferences.serverOrder), [preferences.serverOrder, servers]);
   const selectedServer = useMemo(() => orderedServers.find((server) => server.id === selectedId), [orderedServers, selectedId]);
   const selectedMetrics = selectedId ? metricsByServer[selectedId] : undefined;
+  const fleetWallpaperActive = !selectedServer && Boolean(appWallpaper.url) && (activeView === 'overview' || activeView === 'containers');
+  const mainPanelClassName = fleetWallpaperActive ? 'main-panel wallpaper-board has-wallpaper' : 'main-panel';
+  const mainPanelStyle = fleetWallpaperActive ? ({ backgroundImage: `url("${appWallpaper.url}")` } as React.CSSProperties) : undefined;
   const allContainerCount = useMemo(() => {
     return orderedServers.reduce((total, server) => total + (metricsByServer[server.id]?.containers.length ?? 0), 0);
   }, [metricsByServer, orderedServers]);
@@ -147,6 +160,65 @@ function App() {
   const setPreferenceField = useCallback(function <Key extends keyof AppPreferences>(key: Key, value: AppPreferences[Key]) {
     updatePreferences((current) => ({ ...current, [key]: value }));
   }, [updatePreferences]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchAppVersion()
+      .then((versionInfo) => {
+        if (!cancelled) {
+          setAppVersion(versionInfo);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAppVersion(undefined);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchAppWallpaper()
+      .then((wallpaper) => {
+        if (!cancelled) {
+          setAppWallpaper(wallpaper);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAppWallpaper({ exists: false });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const uploadWallpaper = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      window.alert('Choose an image file.');
+      return;
+    }
+
+    setWallpaperUploading(true);
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const wallpaper = await saveAppWallpaper(dataUrl);
+      setAppWallpaper(wallpaper);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Unable to upload wallpaper.');
+    } finally {
+      setWallpaperUploading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -476,6 +548,14 @@ function App() {
         <button className="command full" onClick={startCreate}>
           <Plus size={16} /> New Server
         </button>
+        <UpdateNotice
+          versionInfo={appVersion}
+          dismissedVersion={dismissedUpdateVersion}
+          onDismiss={(version) => {
+            writeDismissedUpdateVersion(version);
+            setDismissedUpdateVersion(version);
+          }}
+        />
         <button className={!selectedId && activeView === 'overview' ? 'fleet-row active' : 'fleet-row'} onClick={showFleet}>
           <span className={`server-dot ${fleetOnlineState}`} />
           <span>
@@ -518,6 +598,7 @@ function App() {
             );
           })}
         </nav>
+        <AppVersionFooter versionInfo={appVersion} />
       </aside>
 
       <section className={selectedServer ? 'workspace' : 'workspace fleet-workspace'}>
@@ -539,7 +620,7 @@ function App() {
         )}
 
         <div className={profileOpen ? 'content-grid with-profile' : 'content-grid'}>
-          <section className="main-panel">
+          <section className={mainPanelClassName} style={mainPanelStyle}>
             {selectedServer && (
             <div className="tabs">
               <button className={activeView === 'overview' ? 'active' : ''} onClick={() => selectServerView('overview')}>
@@ -657,9 +738,135 @@ function App() {
             </section>
           )}
         </div>
+        {!selectedServer && (activeView === 'overview' || activeView === 'containers') && (
+          <WallpaperUploadControl uploading={wallpaperUploading} onUpload={(file) => void uploadWallpaper(file)} />
+        )}
       </section>
     </main>
   );
+}
+
+function WallpaperUploadControl({ uploading, onUpload }: { uploading: boolean; onUpload: (file: File) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        className="wallpaper-upload-input"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+
+          if (file) {
+            onUpload(file);
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="wallpaper-upload-fab"
+        title="Upload wallpaper"
+        aria-label="Upload wallpaper"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        {uploading ? <RefreshCw size={20} className="spin-icon" /> : <Image size={21} />}
+      </button>
+    </>
+  );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.addEventListener('load', () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Unable to read image file.'));
+      }
+    });
+    reader.addEventListener('error', () => reject(new Error('Unable to read image file.')));
+    reader.readAsDataURL(file);
+  });
+}
+
+function UpdateNotice({
+  versionInfo,
+  dismissedVersion,
+  onDismiss,
+}: {
+  versionInfo?: AppVersionInfo;
+  dismissedVersion: string;
+  onDismiss: (version: string) => void;
+}) {
+  const update = versionInfo?.update;
+  const latestVersion = update?.latestVersion ?? '';
+  const currentVersion = versionInfo?.currentVersion ?? '';
+
+  if (!update?.available || !latestVersion || dismissedVersion === latestVersion) {
+    return null;
+  }
+
+  const openUpdate = () => {
+    if (update.releaseUrl && update.releaseUrl !== '#') {
+      window.open(update.releaseUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  return (
+    <section className="update-notice" aria-live="polite" aria-label="Update available">
+      <div className="update-notice-heading">
+        <span className="update-notice-icon"><BellRing size={15} /></span>
+        <div>
+          <strong>Update available</strong>
+          <span>{currentVersion} to {latestVersion}</span>
+        </div>
+        <button type="button" className="update-dismiss" title="Dismiss update" aria-label="Dismiss update" onClick={() => onDismiss(latestVersion)}>
+          <X size={14} />
+        </button>
+      </div>
+      <button type="button" className="update-action" onClick={openUpdate}>
+        <Download size={15} /> Update
+      </button>
+    </section>
+  );
+}
+
+function AppVersionFooter({ versionInfo }: { versionInfo?: AppVersionInfo }) {
+  const revision = versionInfo?.revision ? versionInfo.revision.slice(0, 7) : undefined;
+
+  return (
+    <div className="app-version">
+      <span>Version</span>
+      <strong>{versionInfo?.currentVersion ?? '...'}</strong>
+      {revision && <code>{revision}</code>}
+    </div>
+  );
+}
+
+function readDismissedUpdateVersion(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  try {
+    return window.localStorage.getItem(DISMISSED_UPDATE_VERSION_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function writeDismissedUpdateVersion(version: string): void {
+  try {
+    window.localStorage.setItem(DISMISSED_UPDATE_VERSION_KEY, version);
+  } catch {
+    // Update dismissal is best-effort; the notice can still be dismissed in memory.
+  }
 }
 
 createRoot(document.getElementById('root')!).render(

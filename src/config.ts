@@ -22,6 +22,13 @@ export const WS_MESSAGE_RATE_LIMIT_MAX = readIntegerEnv('WS_MESSAGE_RATE_LIMIT_M
 export const WS_MESSAGE_RATE_LIMIT_WINDOW_MS = readIntegerEnv('WS_MESSAGE_RATE_LIMIT_WINDOW_MS', 60_000, 1_000, 24 * 60 * 60_000);
 export const VNC_ALLOWED_PORTS = readStringEnv('VNC_ALLOWED_PORTS', '5900-5999');
 export const VNC_ALLOWED_HOSTS = readStringEnv('VNC_ALLOWED_HOSTS');
+export const APP_VERSION = readStringEnv('APP_VERSION');
+export const APP_REVISION = readStringEnv('APP_REVISION');
+export const APP_BUILD_DATE = readStringEnv('APP_BUILD_DATE');
+export const APP_UPDATE_CHECK_DISABLED = readBooleanEnv('APP_UPDATE_CHECK_DISABLED', false);
+export const APP_UPDATE_CHECK_URL = readStringEnv('APP_UPDATE_CHECK_URL', 'https://api.github.com/repos/demencia89/HomeDashboard/releases/latest');
+export const APP_UPDATE_URL = readStringEnv('APP_UPDATE_URL', 'https://github.com/demencia89/HomeDashboard/releases/latest');
+export const APP_UPDATE_CHECK_INTERVAL_MS = readIntegerEnv('APP_UPDATE_CHECK_INTERVAL_MS', 6 * 60 * 60_000, 60_000, 7 * 24 * 60 * 60_000);
 
 if (!AUTH_DISABLED && (!AUTH_USERNAME || !AUTH_PASSWORD)) {
   throw new Error('AUTH_USERNAME and AUTH_PASSWORD must be set, or set AUTH_DISABLED=true for an explicitly unauthenticated deployment.');

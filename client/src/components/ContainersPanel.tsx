@@ -571,120 +571,120 @@ function ContainerListing({
     <>
       {message && <p className="message container-message">{message}</p>}
       {viewMode === 'apps' ? (
-        visibleAppEntries.length ? (
-          <div className={`container-app-grid ${showServer ? 'all-container-app-grid' : ''}`}>
-            {visibleAppEntries.map((entry) => {
-              const { server, container } = entry;
-              const key = containerEntryKey(entry);
-              const orderKey = containerAppOrderKey(entry);
-              const overrideUrl = urlOverrides[containerOverrideKey(server.id, container.name)];
-              const overrideIcon = iconOverrides[containerOverrideKey(server.id, container.name)];
-              const inferredUrl = containerUrl(server, container);
-              const url = overrideUrl ?? inferredUrl;
-              const pendingAction = pendingActions[key];
-              const logsPending = pendingLogsId === key;
-              const actionDisabled = Boolean(pendingAction);
-              const menuOpen = openMenuId === key;
-              const hasComposeSettings = Boolean(container.composeConfigFiles?.length);
+          visibleAppEntries.length ? (
+            <div className={`container-app-grid ${showServer ? 'all-container-app-grid' : ''}`}>
+              {visibleAppEntries.map((entry) => {
+                const { server, container } = entry;
+                const key = containerEntryKey(entry);
+                const orderKey = containerAppOrderKey(entry);
+                const overrideUrl = urlOverrides[containerOverrideKey(server.id, container.name)];
+                const overrideIcon = iconOverrides[containerOverrideKey(server.id, container.name)];
+                const inferredUrl = containerUrl(server, container);
+                const url = overrideUrl ?? inferredUrl;
+                const pendingAction = pendingActions[key];
+                const logsPending = pendingLogsId === key;
+                const actionDisabled = Boolean(pendingAction);
+                const menuOpen = openMenuId === key;
+                const hasComposeSettings = Boolean(container.composeConfigFiles?.length);
 
-	              return (
-                <article
-                  className={`container-app-card ${showServer ? 'with-server' : ''} ${menuOpen ? 'menu-open' : ''} ${draggedKey === orderKey ? 'dragging' : ''} ${dragOverKey === orderKey ? 'drag-over' : ''}`}
-                  key={key}
-                  draggable
-                  onDragStart={(event) => handleDragStart(event, orderKey)}
-                  onDrag={handleDrag}
-                  onDragOver={(event) => handleDragOver(event, orderKey)}
-                  onDrop={handleDrop}
-                  onDragEnd={handleDragEnd}
-                  style={{
-                    '--container-accent': containerAccent(container.name),
-                    viewTransitionName: draggedKey === orderKey ? 'none' : viewTransitionName('container-app', key),
-                  } as React.CSSProperties}
-                >
-                  <button
-                    type="button"
-                    className={url ? 'container-app-launch' : 'container-app-launch disabled'}
-                    title={url ? `Open ${container.name}` : `${container.name} has no inferred URL`}
-                    onClick={() => {
-                      if (suppressClickRef.current) {
-                        return;
-                      }
-
-                      if (url) {
-                        openContainerUrl(server, container, overrideUrl);
-                      }
-                    }}
+                return (
+                  <article
+                    className={`container-app-card ${showServer ? 'with-server' : ''} ${menuOpen ? 'menu-open' : ''} ${draggedKey === orderKey ? 'dragging' : ''} ${dragOverKey === orderKey ? 'drag-over' : ''}`}
+                    key={key}
+                    draggable
+                    onDragStart={(event) => handleDragStart(event, orderKey)}
+                    onDrag={handleDrag}
+                    onDragOver={(event) => handleDragOver(event, orderKey)}
+                    onDrop={handleDrop}
+                    onDragEnd={handleDragEnd}
+                    style={{
+                      '--container-accent': containerAccent(container.name),
+                      viewTransitionName: draggedKey === orderKey ? 'none' : viewTransitionName('container-app', key),
+                    } as React.CSSProperties}
                   >
-                    <span className="container-app-icon-wrap">
-                      {showServer && <ServerIconBadge server={server} size={13} className="container-app-server-badge" />}
-                      <span className={`container-app-icon ${container.state}`}>
-                        {overrideIcon ? (
-                          <img src={overrideIcon} alt="" loading="lazy" draggable={false} />
-                        ) : (
-                          <span>{containerInitials(container.name)}</span>
-                        )}
+                    <button
+                      type="button"
+                      className={url ? 'container-app-launch' : 'container-app-launch disabled'}
+                      title={url ? `Open ${container.name}` : `${container.name} has no inferred URL`}
+                      onClick={() => {
+                        if (suppressClickRef.current) {
+                          return;
+                        }
+
+                        if (url) {
+                          openContainerUrl(server, container, overrideUrl);
+                        }
+                      }}
+                    >
+                      <span className="container-app-icon-wrap">
+                        {showServer && <ServerIconBadge server={server} size={13} className="container-app-server-badge" />}
+                        <span className={`container-app-icon ${container.state}`}>
+                          {overrideIcon ? (
+                            <img src={overrideIcon} alt="" loading="lazy" draggable={false} />
+                          ) : (
+                            <span>{containerInitials(container.name)}</span>
+                          )}
+                        </span>
+                        <span
+                          className={`container-app-status-dot ${container.state === 'running' ? 'online' : 'offline'}`}
+                          title={`${container.name} is ${container.state}`}
+                          aria-hidden="true"
+                        />
                       </span>
-                      <span
-                        className={`container-app-status-dot ${container.state === 'running' ? 'online' : 'offline'}`}
-                        title={`${container.name} is ${container.state}`}
-                        aria-hidden="true"
-                      />
-                    </span>
-                    <strong>{container.name}</strong>
-                    {!showServer && <small>{container.image}</small>}
-                  </button>
-                  <button
-                    type="button"
-                    className="container-app-menu-button"
-                    title={`Manage ${container.name}`}
-                    aria-expanded={menuOpen}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setOpenMenuId(menuOpen ? '' : key);
-                    }}
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                  {menuOpen && (
-                    <div className="container-app-menu">
-                      <button type="button" disabled={!url} onClick={() => url && openContainerUrl(server, container, overrideUrl)}>
-                        <ExternalLink size={14} /> Open
-                      </button>
-                      <button type="button" disabled={!hasComposeSettings} onClick={() => void handleComposeSettings(entry)}>
-                        <Settings size={14} /> Settings
-                      </button>
-                      <button type="button" disabled={logsPending} onClick={() => void handleContainerLogs(entry)}>
-                        {logsPending ? <RefreshCw size={14} className="spin-icon" /> : <FileText size={14} />} Logs
-                      </button>
-                      <button type="button" onClick={() => handleContainerUrlOverride(entry, overrideUrl)}>
-                        <Edit3 size={14} /> URL
-                      </button>
-                      <button type="button" onClick={() => handleContainerIconOverride(entry, overrideIcon)}>
-                        <Image size={14} /> Icon
-                      </button>
-                      <span className="container-app-menu-divider" />
-                      <button type="button" disabled={actionDisabled || !canControlContainer(container, 'start')} onClick={() => void handleContainerAction(entry, 'start')}>
-                        {pendingAction === 'start' ? <RefreshCw size={14} className="spin-icon" /> : <Play size={14} />} Start
-                      </button>
-                      <button type="button" disabled={actionDisabled || !canControlContainer(container, 'restart')} onClick={() => void handleContainerAction(entry, 'restart')}>
-                        <RefreshCw size={14} className={pendingAction === 'restart' ? 'spin-icon' : undefined} /> Restart
-                      </button>
-                      <button type="button" className="danger-menu-item" disabled={actionDisabled || !canControlContainer(container, 'stop')} onClick={() => void handleContainerAction(entry, 'stop')}>
-                        {pendingAction === 'stop' ? <RefreshCw size={14} className="spin-icon" /> : <Square size={14} />} Stop
-                      </button>
-                    </div>
-                  )}
-                  <span className={`container-app-status ${container.state}`}>{container.state}</span>
-                </article>
-              );
-            })}
-          </div>
+                      <strong>{container.name}</strong>
+                      {!showServer && <small>{container.image}</small>}
+                    </button>
+                    <button
+                      type="button"
+                      className="container-app-menu-button"
+                      title={`Manage ${container.name}`}
+                      aria-expanded={menuOpen}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setOpenMenuId(menuOpen ? '' : key);
+                      }}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                    {menuOpen && (
+                      <div className="container-app-menu">
+                        <button type="button" disabled={!url} onClick={() => url && openContainerUrl(server, container, overrideUrl)}>
+                          <ExternalLink size={14} /> Open
+                        </button>
+                        <button type="button" disabled={!hasComposeSettings} onClick={() => void handleComposeSettings(entry)}>
+                          <Settings size={14} /> Settings
+                        </button>
+                        <button type="button" disabled={logsPending} onClick={() => void handleContainerLogs(entry)}>
+                          {logsPending ? <RefreshCw size={14} className="spin-icon" /> : <FileText size={14} />} Logs
+                        </button>
+                        <button type="button" onClick={() => handleContainerUrlOverride(entry, overrideUrl)}>
+                          <Edit3 size={14} /> URL
+                        </button>
+                        <button type="button" onClick={() => handleContainerIconOverride(entry, overrideIcon)}>
+                          <Image size={14} /> Icon
+                        </button>
+                        <span className="container-app-menu-divider" />
+                        <button type="button" disabled={actionDisabled || !canControlContainer(container, 'start')} onClick={() => void handleContainerAction(entry, 'start')}>
+                          {pendingAction === 'start' ? <RefreshCw size={14} className="spin-icon" /> : <Play size={14} />} Start
+                        </button>
+                        <button type="button" disabled={actionDisabled || !canControlContainer(container, 'restart')} onClick={() => void handleContainerAction(entry, 'restart')}>
+                          <RefreshCw size={14} className={pendingAction === 'restart' ? 'spin-icon' : undefined} /> Restart
+                        </button>
+                        <button type="button" className="danger-menu-item" disabled={actionDisabled || !canControlContainer(container, 'stop')} onClick={() => void handleContainerAction(entry, 'stop')}>
+                          {pendingAction === 'stop' ? <RefreshCw size={14} className="spin-icon" /> : <Square size={14} />} Stop
+                        </button>
+                      </div>
+                    )}
+                    <span className={`container-app-status ${container.state}`}>{container.state}</span>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state panel-empty">All containers are hidden from app view.</div>
+          )
         ) : (
-          <div className="empty-state panel-empty">All containers are hidden from app view.</div>
-        )
-      ) : (
-        <div className="container-table">
+          <div className="container-table">
           <div className={`container-row header ${showServer ? 'with-server' : ''}`}>
             {showServer && <span>Server</span>}<span>Name</span><span>Image</span><span>Status</span><span>Actions</span>
           </div>
@@ -789,8 +789,8 @@ function ContainerListing({
               </div>
             );
           })}
-        </div>
-      )}
+          </div>
+        )}
       {logsState && (
         <section className="container-logs-panel">
           <div className="container-logs-heading">

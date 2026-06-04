@@ -1,4 +1,4 @@
-import type { DockerComposeFileResponse, DockerContainerAction, NethogsSnapshot, ServerFormState, SystemdServiceAction, SystemdServicesResponse, SystemdServiceUnit, VncInstallResult, VncServiceCandidate, VncSetupInfo, VncStatusResponse } from '../types';
+import type { AppVersionInfo, AppWallpaperInfo, DockerComposeFileResponse, DockerContainerAction, NethogsSnapshot, ServerFormState, SystemdServiceAction, SystemdServicesResponse, SystemdServiceUnit, VncInstallResult, VncServiceCandidate, VncSetupInfo, VncStatusResponse } from '../types';
 
 export function buildPayload(form: ServerFormState) {
   return {
@@ -35,6 +35,43 @@ export async function controlContainer(serverId: string, containerId: string, ac
   if (!response.ok) {
     throw new Error(body?.message ?? 'Unable to control Docker container.');
   }
+}
+
+export async function fetchAppVersion(): Promise<AppVersionInfo> {
+  const response = await fetch('/api/app/version');
+  const body = (await response.json().catch(() => undefined)) as AppVersionInfo | { message?: string } | undefined;
+
+  if (!response.ok) {
+    throw new Error(body && 'message' in body ? body.message ?? 'Unable to read app version.' : 'Unable to read app version.');
+  }
+
+  return normalizeAppVersionInfo(body);
+}
+
+export async function fetchAppWallpaper(): Promise<AppWallpaperInfo> {
+  const response = await fetch('/api/app/wallpaper');
+  const body = (await response.json().catch(() => undefined)) as AppWallpaperInfo | { message?: string } | undefined;
+
+  if (!response.ok) {
+    throw new Error(body && 'message' in body ? body.message ?? 'Unable to read wallpaper.' : 'Unable to read wallpaper.');
+  }
+
+  return normalizeAppWallpaperInfo(body);
+}
+
+export async function saveAppWallpaper(dataUrl: string): Promise<AppWallpaperInfo> {
+  const response = await fetch('/api/app/wallpaper', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dataUrl }),
+  });
+  const body = (await response.json().catch(() => undefined)) as AppWallpaperInfo | { message?: string } | undefined;
+
+  if (!response.ok) {
+    throw new Error(body && 'message' in body ? body.message ?? 'Unable to save wallpaper.' : 'Unable to save wallpaper.');
+  }
+
+  return normalizeAppWallpaperInfo(body);
 }
 
 export async function getContainerLogs(serverId: string, containerId: string): Promise<string> {
@@ -244,6 +281,38 @@ function normalizeVncSetupInfo(body: VncSetupInfo | { message?: string } | undef
     },
     notes: Array.isArray(responseBody?.notes) ? responseBody.notes.filter((note): note is string => typeof note === 'string') : [],
     error: typeof responseBody?.error === 'string' ? responseBody.error : undefined,
+  };
+}
+
+function normalizeAppVersionInfo(body: AppVersionInfo | { message?: string } | undefined): AppVersionInfo {
+  const responseBody = body as AppVersionInfo | undefined;
+  const update = responseBody?.update;
+
+  return {
+    name: 'HomeDashboard',
+    currentVersion: typeof responseBody?.currentVersion === 'string' && responseBody.currentVersion.trim() ? responseBody.currentVersion : '0.0.0',
+    revision: typeof responseBody?.revision === 'string' && responseBody.revision.trim() ? responseBody.revision : undefined,
+    buildDate: typeof responseBody?.buildDate === 'string' && responseBody.buildDate.trim() ? responseBody.buildDate : undefined,
+    update: {
+      enabled: update?.enabled === true,
+      available: update?.available === true,
+      latestVersion: typeof update?.latestVersion === 'string' && update.latestVersion.trim() ? update.latestVersion : undefined,
+      releaseUrl: typeof update?.releaseUrl === 'string' && update.releaseUrl.trim() ? update.releaseUrl : '#',
+      checkedAt: typeof update?.checkedAt === 'string' && update.checkedAt.trim() ? update.checkedAt : undefined,
+      error: typeof update?.error === 'string' && update.error.trim() ? update.error : undefined,
+    },
+  };
+}
+
+function normalizeAppWallpaperInfo(body: AppWallpaperInfo | { message?: string } | undefined): AppWallpaperInfo {
+  const responseBody = body as AppWallpaperInfo | undefined;
+  const updatedAt = typeof responseBody?.updatedAt === 'string' && responseBody.updatedAt.trim() ? responseBody.updatedAt : undefined;
+  const url = typeof responseBody?.url === 'string' && responseBody.url.trim() ? responseBody.url : undefined;
+
+  return {
+    exists: responseBody?.exists === true && Boolean(url),
+    url,
+    updatedAt,
   };
 }
 

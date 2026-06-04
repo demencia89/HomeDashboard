@@ -4,14 +4,17 @@ HomeDashboard is a lightweight self-hosted server dashboard for monitoring and m
 
 ## Screenshots
 
-![HomeDashboard overview](docs/screenshots/overview-desktop.png)
+![Fleet overview with wallpaper and gauges](docs/screenshots/overview-desktop.png)
 
 <p>
-  <img src="docs/screenshots/containers-desktop.png" alt="Container management" width="49%">
-  <img src="docs/screenshots/services-desktop.png" alt="Service management" width="49%">
+  <img src="docs/screenshots/containers-desktop.png" alt="All containers app view" width="49%">
+  <img src="docs/screenshots/containers-list-desktop.png" alt="All containers list view" width="49%">
 </p>
 
-<img src="docs/screenshots/overview-mobile.png" alt="Mobile overview" width="360">
+<p>
+  <img src="docs/screenshots/server-overview-desktop.png" alt="Selected server overview" width="49%">
+  <img src="docs/screenshots/vnc-desktop.png" alt="VNC viewer" width="49%">
+</p>
 
 ## Quick Start
 
@@ -44,12 +47,15 @@ HomeDashboard manages Linux hosts over SSH, so after logging in, add a server pr
 
 - Fastify + TypeScript backend with a Vite/React frontend.
 - SSH-based telemetry collection for CPU, memory, disk, processes, and Docker containers.
-- Fleet overview with draggable server ordering, Bars/Gauges metric modes, compact temperature, disk I/O, and network indicators.
+- Fleet overview with draggable server ordering, Bars/Gauges metric modes, compact temperature, disk I/O, network indicators, theme-aware gauges, and optional shared wallpaper.
 - File browsing, upload/download, editing, mkdir, rename, and delete over SFTP.
-- Web terminal sessions using `ssh2`.
+- Web terminal sessions using `ssh2`, with the terminal surface resizing to the available browser space.
 - Docker container list and app-icon views with draggable ordering, logs, custom app icons, guarded start/stop/restart actions, and optional Compose file editing for Compose-managed containers.
+- All Servers and All Containers wallpaper support, stored on the server in `/config` so the same wallpaper appears across devices.
+- App version display and optional update notifications backed by a configurable release endpoint.
 - Temperature sensor and NetHogs network popups from the fleet cards.
-- Multiple visual themes with configurable automatic refresh rate.
+- Multiple visual themes with configurable automatic refresh rate, including a neon-styled Neo theme and a light Minimal theme.
+- VNC status, setup, service control, embedded viewer, fullscreen controls, and pop-out viewing.
 - Persistent configuration through a mounted `/config` volume.
 
 ## Requirements
@@ -105,6 +111,13 @@ services:
       AUTH_USERNAME: ${AUTH_USERNAME:-user}
       AUTH_PASSWORD: ${AUTH_PASSWORD:-change-me}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      APP_VERSION: ${APP_VERSION:-}
+      APP_REVISION: ${APP_REVISION:-}
+      APP_BUILD_DATE: ${APP_BUILD_DATE:-}
+      APP_UPDATE_CHECK_DISABLED: ${APP_UPDATE_CHECK_DISABLED:-false}
+      APP_UPDATE_CHECK_URL: ${APP_UPDATE_CHECK_URL:-https://api.github.com/repos/demencia89/HomeDashboard/releases/latest}
+      APP_UPDATE_URL: ${APP_UPDATE_URL:-https://github.com/demencia89/HomeDashboard/releases/latest}
+      APP_UPDATE_CHECK_INTERVAL_MS: ${APP_UPDATE_CHECK_INTERVAL_MS:-21600000}
     ports:
       - "${PORT_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     volumes:
@@ -148,6 +161,11 @@ Runtime configuration is provided by environment variables:
 - `LOCAL_FILE_ROOT`: root for local file operations, defaults to `/config/files`.
 - `ENCRYPTION_KEY`: optional master secret for stored server passwords. If omitted, HomeDashboard creates `/config/.secret_key`.
 - `HOST`, `PORT`, `PORT_BIND_ADDRESS`, `CORS_ORIGIN`: server binding, Docker published-port binding, and CORS settings.
+- `APP_VERSION`, `APP_REVISION`, `APP_BUILD_DATE`: optional build metadata shown in the UI. If `APP_VERSION` is unset, HomeDashboard uses the package version.
+- `APP_UPDATE_CHECK_DISABLED`: set to `true` to disable the outbound update check.
+- `APP_UPDATE_CHECK_URL`: JSON endpoint used to discover the latest version. It may return GitHub release JSON (`tag_name`, `html_url`) or generic JSON (`version`, `releaseUrl`).
+- `APP_UPDATE_URL`: URL opened by the Update button when a newer version is available.
+- `APP_UPDATE_CHECK_INTERVAL_MS`: server-side update check cache interval, defaults to `21600000` ms.
 - `AUTH_FAILURE_RATE_LIMIT_MAX`, `AUTH_FAILURE_RATE_LIMIT_WINDOW_MS`: failed Basic auth attempts per client before `429`, defaults to `20` per `300000` ms.
 - `EXPENSIVE_HTTP_RATE_LIMIT_MAX`, `EXPENSIVE_HTTP_RATE_LIMIT_WINDOW_MS`: SSH-backed HTTP API requests per client, defaults to `180` per `60000` ms.
 - `WS_CONNECTION_RATE_LIMIT_MAX`, `WS_CONNECTION_RATE_LIMIT_WINDOW_MS`: WebSocket connection attempts per client, defaults to `60` per `60000` ms.
@@ -158,7 +176,7 @@ Runtime configuration is provided by environment variables:
 
 Set a limit `*_MAX` value to `0` to disable that specific limiter. The defaults are intended for a trusted LAN dashboard: they should allow normal use while slowing repeated authentication failures, expensive SSH-backed polling, and runaway WebSocket clients.
 
-Persistent data lives in `/config/servers.json`, `/config/keys/`, and `/config/.secret_key`. These files may contain private keys or encrypted credentials and must not be committed. The container entrypoint tightens `/config` directories to `0700` and files to `0600` when it starts as root, but app-readable secrets are still reachable if the container itself is compromised.
+Persistent data lives in `/config/servers.json`, `/config/keys/`, `/config/.secret_key`, and `/config/wallpaper.json`. Server profiles, keys, and secrets may contain private keys or encrypted credentials and must not be committed. The wallpaper file stores the uploaded shared wallpaper image data. The container entrypoint tightens `/config` directories to `0700` and files to `0600` when it starts as root, but app-readable secrets are still reachable if the container itself is compromised.
 
 ## Server Profiles
 
@@ -172,15 +190,29 @@ The fleet overview shows all configured servers as draggable cards. Bars mode us
 
 Temperature and network indicators are interactive. Temperature opens a sensor list where the card reading can be changed per server. Network opens a NetHogs terminal view for the selected host when the required command is available through SSH.
 
+The All Servers and All Containers views can use a shared wallpaper. Use the round image button in the lower-right corner to upload a PNG, JPEG, WebP, or GIF image up to 5 MB. The wallpaper is saved under `/config/wallpaper.json`, rendered with cover sizing to avoid tiling, and shown on every device using that HomeDashboard instance.
+
+When filtering filesystems to "Only user-mounted drives", HomeDashboard still keeps `/`, `/home`, and the selected default filesystem visible when those mounts are present.
+
 ## Container Management
 
 The Containers tab supports both a table view and a CasaOS-style app view. Container ordering is stored locally and can be changed by drag and drop in both per-server and all-container views. App tiles can use custom icon URLs and custom launch URLs when Docker port mappings are not enough to infer a link.
 
 Compose-managed containers expose a Settings action when Docker labels include a discoverable Compose file. HomeDashboard reads that Compose file, lets you edit it, validates it with `docker compose config`, writes a timestamped backup, and applies it with `docker compose up -d`. Containers without Compose metadata still support runtime actions and logs, but do not show Compose settings.
 
+The all-container app and list views share the same wallpaper surface as the fleet overview. Cards, tables, headers, and status messages use translucent themed surfaces so wallpaper remains visible without losing readability.
+
+## Terminals And VNC
+
+Terminal sessions run through SSH-backed WebSockets and resize with the active browser viewport while keeping safe minimum dimensions. VNC support discovers common VNC services, exposes setup guidance for supported Linux desktops, tunnels through the selected SSH profile, and uses red disconnect controls to distinguish destructive session-ending actions from normal primary actions.
+
 ## Themes And Refresh
 
-The sidebar theme picker changes the app palette across the dashboard. The refresh-rate picker controls automatic telemetry refreshes; set it to Off to rely on manual refresh buttons.
+The sidebar theme picker changes the app palette across the dashboard, including gauges, status colors, controls, cards, and wallpaper surfaces. Neo uses brighter neon accents and scoped bloom effects; Minimal keeps selected-server and fleet surfaces light. The refresh-rate picker controls automatic telemetry refreshes; set it to Off to rely on manual refresh buttons.
+
+## Version And Updates
+
+HomeDashboard displays its current version in the sidebar. By default, the Docker Compose configuration points the update checker at the latest GitHub release for this repository. If a newer release is available, the sidebar shows an update notice that can be opened or dismissed. Set `APP_UPDATE_CHECK_DISABLED=true` to disable outbound update checks, or override `APP_UPDATE_CHECK_URL` and `APP_UPDATE_URL` for another release channel.
 
 ## Security Notes
 

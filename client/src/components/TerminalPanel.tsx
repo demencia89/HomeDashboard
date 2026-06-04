@@ -7,6 +7,9 @@ import { buildWebSocketUrl } from '../lib/websocket';
 type XTerm = import('@xterm/xterm').Terminal;
 type FitAddon = import('@xterm/addon-fit').FitAddon;
 
+const MIN_TERMINAL_SURFACE_HEIGHT = 360;
+const TERMINAL_VIEWPORT_BOTTOM_GUTTER = 20;
+
 export function TerminalSessions({ servers, activeServerId, visible }: { servers: ServerProfile[]; activeServerId: string; visible: boolean }) {
   const activeServer = servers.find((server) => server.id === activeServerId);
 
@@ -30,12 +33,14 @@ export function TerminalSessions({ servers, activeServerId, visible }: { servers
 }
 
 function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile; visible: boolean; autoConnect: boolean }) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const terminal = useRef<XTerm | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
   const resizeObserver = useRef<ResizeObserver | null>(null);
   const [connected, setConnected] = useState(false);
+  const [surfaceHeight, setSurfaceHeight] = useState(MIN_TERMINAL_SURFACE_HEIGHT);
 
   const disconnect = useCallback(() => {
     resizeObserver.current?.disconnect();
@@ -56,7 +61,7 @@ function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile
     }
   }, []);
 
-  const fitTerminal = useCallback(() => {
+  const fitTerminal = useCallback((focus = false) => {
     if (!visible || !terminal.current || !fitAddon.current) {
       return;
     }
@@ -64,9 +69,27 @@ function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile
     requestAnimationFrame(() => {
       fitAddon.current?.fit();
       sendResize();
-      terminal.current?.focus();
+      if (focus) {
+        terminal.current?.focus();
+      }
     });
   }, [sendResize, visible]);
+
+  const syncSurfaceHeight = useCallback(() => {
+    if (!visible || !terminalRef.current) {
+      return;
+    }
+
+    const rect = terminalRef.current.getBoundingClientRect();
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const nextHeight = Math.max(
+      MIN_TERMINAL_SURFACE_HEIGHT,
+      Math.floor(viewportHeight - rect.top - TERMINAL_VIEWPORT_BOTTOM_GUTTER),
+    );
+
+    setSurfaceHeight((current) => (current === nextHeight ? current : nextHeight));
+    fitTerminal();
+  }, [fitTerminal, visible]);
 
   const connect = useCallback(() => {
     if (!terminalRef.current) {
@@ -111,11 +134,13 @@ function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile
       term.loadAddon(fit);
       term.open(target);
       observer.observe(target);
-      fitTerminal();
+      syncSurfaceHeight();
+      fitTerminal(true);
 
       ws.addEventListener('open', () => {
         setConnected(true);
-        fitTerminal();
+        syncSurfaceHeight();
+        fitTerminal(true);
       });
       ws.addEventListener('message', async (event) => term.write(typeof event.data === 'string' ? event.data : await event.data.text()));
       ws.addEventListener('close', () => {
@@ -128,7 +153,7 @@ function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile
       ws.addEventListener('error', () => setConnected(false));
       term.onData((data) => ws.readyState === WebSocket.OPEN && ws.send(data));
     })();
-  }, [disconnect, fitTerminal, server.id]);
+  }, [disconnect, fitTerminal, server.id, syncSurfaceHeight]);
 
   useEffect(() => disconnect, [disconnect]);
 
@@ -142,18 +167,47 @@ function TerminalPanel({ server, visible, autoConnect }: { server: ServerProfile
       return;
     }
 
-    fitTerminal();
-  }, [autoConnect, connect, fitTerminal]);
+    syncSurfaceHeight();
+    fitTerminal(true);
+  }, [autoConnect, connect, fitTerminal, syncSurfaceHeight]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    let frame = 0;
+    const scheduleSync = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(syncSurfaceHeight);
+    };
+    const observer = new ResizeObserver(scheduleSync);
+
+    if (panelRef.current) {
+      observer.observe(panelRef.current);
+    }
+
+    window.addEventListener('resize', scheduleSync);
+    window.visualViewport?.addEventListener('resize', scheduleSync);
+    scheduleSync();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleSync);
+      window.visualViewport?.removeEventListener('resize', scheduleSync);
+    };
+  }, [syncSurfaceHeight, visible]);
 
   return (
-    <div className={visible ? 'terminal-panel' : 'terminal-panel hidden'} aria-hidden={!visible}>
+    <div className={visible ? 'terminal-panel' : 'terminal-panel hidden'} ref={panelRef} aria-hidden={!visible}>
       <div className="toolbar">
         <button className="command" onClick={connect} disabled={connected}><Cable size={16} /> Connect</button>
-        <button className="command" onClick={disconnect} disabled={!connected}><XCircle size={16} /> Disconnect</button>
+        <button className="danger" onClick={disconnect} disabled={!connected}><XCircle size={16} /> Disconnect</button>
         <span className={connected ? 'badge good' : 'badge neutral'}>{connected ? 'Connected' : 'Disconnected'}</span>
         <span className="terminal-server-label">{server.alias}</span>
       </div>
-      <div className="terminal-surface" ref={terminalRef} />
+      <div className="terminal-surface" ref={terminalRef} style={{ height: surfaceHeight }} />
     </div>
   );
 }

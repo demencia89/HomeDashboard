@@ -471,6 +471,7 @@ export function VncPanel({
   const graphicalServiceActionTitle = selectedGraphicalService?.activeState === 'active' ? 'Stop service' : 'Start service';
   const targetLabel = `${host || '127.0.0.1'}:${port || '5900'}`;
   const connectionActionDisabled = connectionState === 'disconnecting' || (!connected && !vncReady);
+  const connectionActionReady = vncReady && connectionState === 'idle';
 
   const handleConnectionAction = () => {
     if (connected) {
@@ -539,7 +540,7 @@ export function VncPanel({
           </button>
           <button
             type="button"
-            className={`vnc-connect-button ${vncReady && !connected ? 'ready' : ''} ${connected ? 'connected' : ''}`}
+            className={`vnc-connect-button ${connectionActionReady ? 'ready' : ''} ${connected ? 'connected' : ''} ${connectionState === 'disconnecting' ? 'disconnecting' : ''}`}
             disabled={connectionActionDisabled}
             onClick={handleConnectionAction}
           >

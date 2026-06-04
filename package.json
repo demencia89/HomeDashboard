@@ -1,6 +1,6 @@
 {
   "name": "home-dashboard-backend",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lightweight self-hosted server profile manager for CasaOS deployments.",
   "license": "MIT",
   "type": "module",

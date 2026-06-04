@@ -16,6 +16,13 @@ services:
       AUTH_USERNAME: ${AUTH_USERNAME:-user}
       AUTH_PASSWORD: ${AUTH_PASSWORD:-change-me}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      APP_VERSION: ${APP_VERSION:-}
+      APP_REVISION: ${APP_REVISION:-}
+      APP_BUILD_DATE: ${APP_BUILD_DATE:-}
+      APP_UPDATE_CHECK_DISABLED: ${APP_UPDATE_CHECK_DISABLED:-false}
+      APP_UPDATE_CHECK_URL: ${APP_UPDATE_CHECK_URL:-https://api.github.com/repos/demencia89/HomeDashboard/releases/latest}
+      APP_UPDATE_URL: ${APP_UPDATE_URL:-https://github.com/demencia89/HomeDashboard/releases/latest}
+      APP_UPDATE_CHECK_INTERVAL_MS: ${APP_UPDATE_CHECK_INTERVAL_MS:-21600000}
     ports:
       - "${PORT_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     volumes:

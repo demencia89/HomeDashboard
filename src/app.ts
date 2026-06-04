@@ -16,6 +16,8 @@ import { preferenceRoutes } from './routes/preferences.js';
 import { serverRoutes } from './routes/servers.js';
 import { registerBasicAuth } from './security/basic-auth.js';
 import { createWebSocketToken, registerExpensiveHttpRateLimit } from './security/rate-limit.js';
+import { deleteWallpaper, getWallpaperImage, getWallpaperInfo, saveWallpaper } from './services/appWallpaperService.js';
+import { getAppVersionInfo } from './services/appVersionService.js';
 import { JsonStore } from './storage/json-store.js';
 import { KeyStore } from './storage/key-store.js';
 import { redactedError } from './utils/api-errors.js';
@@ -77,6 +79,35 @@ export async function buildApp() {
   registerExpensiveHttpRateLimit(app);
 
   app.get('/health', async () => ({ ok: true }));
+  app.get('/api/app/version', async () => getAppVersionInfo());
+  app.get('/api/app/wallpaper', async () => getWallpaperInfo());
+  app.get('/api/app/wallpaper/image', async (_request, reply) => {
+    const wallpaper = await getWallpaperImage();
+
+    if (!wallpaper) {
+      return reply.code(404).send({
+        error: 'Not Found',
+        message: 'Wallpaper image was not found.',
+      });
+    }
+
+    return reply
+      .type(wallpaper.mimeType)
+      .header('Cache-Control', 'no-store')
+      .header('Last-Modified', new Date(wallpaper.updatedAt).toUTCString())
+      .send(wallpaper.buffer);
+  });
+  app.put('/api/app/wallpaper', { bodyLimit: 8 * 1024 * 1024 }, async (request, reply) => {
+    try {
+      return await saveWallpaper(request.body);
+    } catch (error) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        message: error instanceof Error ? error.message : 'Unable to save wallpaper.',
+      });
+    }
+  });
+  app.delete('/api/app/wallpaper', async () => deleteWallpaper());
   app.get('/api/ws-token', async () => ({ token: webSocketToken }));
   await app.register(serverRoutes, { store, keyStore });
   await app.register(preferenceRoutes, { store });

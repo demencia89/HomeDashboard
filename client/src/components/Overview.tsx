@@ -38,7 +38,7 @@ export function Overview({
   const primaryDisk = findDiskByMount(disks, selectedDefaultDiskMount) ?? disks[0];
   const diskPercentage = primaryDisk?.percentage ?? 0;
   const diskDetail = primaryDisk ? `${primaryDisk.mount} ${formatFilesystemSize(primaryDisk.used)} / ${formatFilesystemSize(primaryDisk.total)}` : 'No disk data';
-  const visibleDisks = userMountsOnly ? disks.filter(isUserMountedDisk) : disks;
+  const visibleDisks = userMountsOnly ? disks.filter((disk) => isAlwaysVisibleDisk(disk.mount, selectedDefaultDiskMount) || isUserMountedDisk(disk)) : disks;
   const normalizedSections = useMemo(() => {
     return normalizeOverviewSectionPreferences(server ? sectionPreferencesByServer[server.id] : undefined);
   }, [sectionPreferencesByServer, server]);
@@ -250,6 +250,15 @@ async function confirmAndKillProcess(process: ProcessMetric, onKillProcess: (pid
 
 function clampPercentage(value: number): number {
   return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
+function isAlwaysVisibleDisk(mount: string, selectedDefaultDiskMount: string | undefined): boolean {
+  const normalizedMount = normalizeMount(mount);
+  return normalizedMount === '/' || normalizedMount === '/home' || normalizedMount === normalizeMount(selectedDefaultDiskMount);
+}
+
+function normalizeMount(mount: string | undefined): string {
+  return mount?.replace(/\/+$/g, '') || '/';
 }
 
 function getDiskUsageState(percentage: number): 'ok' | 'warning' | 'danger' {

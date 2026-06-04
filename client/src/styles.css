@@ -42,7 +42,7 @@ body,
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: min(100%, 320px);
   min-height: 100vh;
   background:
     linear-gradient(180deg, #0a0f14 0%, #0d131a 48%, #090d12 100%);
@@ -525,7 +525,8 @@ button:disabled {
 }
 
 .server-row {
-  grid-template-columns: 10px 34px minmax(0, 1fr) auto;
+  grid-template-columns: 10px 34px minmax(0, 1fr);
+  padding-right: 45px;
 }
 
 .fleet-row {
@@ -642,12 +643,21 @@ button:disabled {
   border-radius: 999px;
 }
 
+.server-row .server-auth {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  max-width: 34px;
+}
+
 .workspace {
   min-width: 0;
   padding: 20px;
 }
 
 .fleet-workspace {
+  min-height: 100vh;
   padding-top: 14px;
 }
 
@@ -1064,6 +1074,134 @@ button:disabled {
   width: 100%;
 }
 
+.update-notice {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(45, 212, 191, 0.16), transparent 54%),
+    linear-gradient(180deg, #17202a, #10171f);
+  border: 1px solid rgba(53, 211, 178, 0.36);
+  border-radius: 8px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+  animation: pop-in 160ms ease-out;
+}
+
+.update-notice-heading {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.update-notice-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: #06110f;
+  background: linear-gradient(135deg, #7ef0dc, #35d3b2);
+  border-radius: 7px;
+}
+
+.update-notice-heading strong,
+.update-notice-heading span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-notice-heading strong {
+  font-size: 13px;
+}
+
+.update-notice-heading span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.update-dismiss,
+.update-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.update-dismiss {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #b7c4d2;
+  background: rgba(10, 15, 20, 0.28);
+}
+
+.update-action {
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 10px;
+  color: #06110f;
+  font-weight: 800;
+  background: linear-gradient(135deg, #7ef0dc, #35d3b2);
+  border-color: rgba(126, 240, 220, 0.58);
+}
+
+.update-dismiss:hover {
+  color: #f4f8fb;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(148, 163, 184, 0.26);
+  transform: translateY(-1px);
+}
+
+.update-action:hover {
+  background: linear-gradient(135deg, #8cf6e4, #45dfbf);
+  border-color: rgba(126, 240, 220, 0.78);
+  transform: translateY(-1px);
+}
+
+.app-version {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin-top: auto;
+  padding: 3px 5px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.app-version span {
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.app-version strong,
+.app-version code {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-version code {
+  padding: 2px 5px;
+  color: #b7c4d2;
+  background: rgba(148, 163, 184, 0.09);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+}
+
 .refresh-command svg {
   position: relative;
   z-index: 1;
@@ -1133,12 +1271,14 @@ button:disabled {
 }
 
 .main-panel {
+  display: flex;
+  flex-direction: column;
   min-height: 680px;
   overflow: hidden;
 }
 
 .fleet-workspace .main-panel {
-  min-height: calc(100vh - 28px);
+  min-height: calc(100vh - 34px);
 }
 
 .view-pane.hidden,
@@ -1148,7 +1288,16 @@ button:disabled {
 
 .view-pane:not(.hidden),
 .terminal-panel:not(.hidden) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   animation: panel-in 180ms ease-out;
+}
+
+.terminal-stack {
+  min-width: 0;
+  min-height: 0;
 }
 
 .tabs {
@@ -1164,9 +1313,17 @@ button:disabled {
 .files-panel,
 .vnc-panel,
 .terminal-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: calc(360px + 64px);
   padding: 14px;
+}
+
+.terminal-panel .toolbar {
+  flex: 0 0 auto;
 }
 
 .fleet-overview {
@@ -2041,16 +2198,16 @@ button:disabled {
   width: 34px;
   height: 34px;
   padding: 0;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #ffcbd5;
+  background: rgba(136, 19, 55, 0.12);
+  border: 1px solid rgba(251, 113, 133, 0.22);
   border-radius: 7px;
 }
 
 .compose-remove-row:hover:not(:disabled) {
-  color: #fecdd3;
-  background: rgba(251, 113, 133, 0.1);
-  border-color: rgba(251, 113, 133, 0.28);
+  color: #ffe4e8;
+  background: rgba(136, 19, 55, 0.24);
+  border-color: rgba(251, 113, 133, 0.42);
 }
 
 .compose-switch {
@@ -2513,7 +2670,6 @@ button:disabled {
 
 .metric-tile {
   --metric-color: var(--teal);
-  --metric-rgb: 53, 211, 178;
   position: relative;
   display: grid;
   align-content: center;
@@ -2522,14 +2678,14 @@ button:disabled {
   min-height: 190px;
   padding: 16px 18px 18px;
   overflow: hidden;
-  border: 1px solid rgba(var(--metric-rgb), 0.28);
+  border: 1px solid color-mix(in srgb, var(--metric-color) 28%, transparent);
   border-radius: 8px;
   background:
-    radial-gradient(circle at 50% 4%, rgba(var(--metric-rgb), 0.16), transparent 56%),
-    linear-gradient(135deg, rgba(var(--metric-rgb), 0.13), rgba(17, 22, 29, 0.74) 52%, rgba(var(--metric-rgb), 0.09));
+    radial-gradient(circle at 50% 4%, color-mix(in srgb, var(--metric-color) 16%, transparent), transparent 56%),
+    linear-gradient(135deg, color-mix(in srgb, var(--metric-color) 13%, transparent), rgba(17, 22, 29, 0.74) 52%, color-mix(in srgb, var(--metric-color) 9%, transparent));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 32px rgba(var(--metric-rgb), 0.08);
+    inset 0 0 32px color-mix(in srgb, var(--metric-color) 8%, transparent);
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
@@ -2551,7 +2707,7 @@ button:disabled {
   border-color: color-mix(in srgb, var(--metric-color) 54%, rgba(255, 255, 255, 0.12));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.055),
-    inset 0 0 34px rgba(var(--metric-rgb), 0.12),
+    inset 0 0 34px color-mix(in srgb, var(--metric-color) 12%, transparent),
     0 14px 28px rgba(0, 0, 0, 0.16);
 }
 
@@ -2563,17 +2719,14 @@ button:disabled {
 
 .metric-tile.teal {
   --metric-color: var(--teal);
-  --metric-rgb: 53, 211, 178;
 }
 
 .metric-tile.blue {
   --metric-color: var(--blue);
-  --metric-rgb: 96, 168, 255;
 }
 
 .metric-tile.amber {
   --metric-color: var(--amber);
-  --metric-rgb: 255, 189, 84;
 }
 
 .fleet-card-gauges .metric-tile {
@@ -2669,7 +2822,7 @@ button:disabled {
 }
 
 .gauge-track {
-  stroke: rgba(118, 145, 163, 0.76);
+  stroke: var(--theme-gauge-track, color-mix(in srgb, var(--muted) 52%, transparent));
   opacity: 0.9;
 }
 
@@ -2720,14 +2873,14 @@ button:disabled {
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
-  text-shadow: 0 0 18px rgba(var(--metric-rgb), 0.38), 0 1px 8px rgba(0, 0, 0, 0.36);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--metric-color) 38%, transparent), 0 1px 8px rgba(0, 0, 0, 0.36);
 }
 
 .metric-tile .metric-value {
   color: color-mix(in srgb, var(--metric-color) 72%, #f4f8fb);
   font-size: 40px;
   font-weight: 500;
-  text-shadow: 0 0 18px rgba(var(--metric-rgb), 0.38), 0 1px 8px rgba(0, 0, 0, 0.36);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--metric-color) 38%, transparent), 0 1px 8px rgba(0, 0, 0, 0.36);
 }
 
 .fleet-card-gauges .metric-tile .metric-value {
@@ -3311,10 +3464,12 @@ button:disabled {
   box-shadow: 0 0 0 4px rgba(81, 230, 166, 0.12);
 }
 
-.vnc-connect-button.connected {
-  color: #061116;
-  background: #60a8ff;
-  border-color: #8fc1ff;
+.vnc-connect-button.connected,
+.vnc-connect-button.disconnecting {
+  color: #fff1f3;
+  background: #9f1239;
+  border-color: #fb7185;
+  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
 }
 
 .vnc-connect-button:hover:not(:disabled) {
@@ -4225,12 +4380,20 @@ button.vnc-health-chip:disabled {
 }
 
 .terminal-surface {
-  height: 530px;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: min(100%, 320px);
   min-height: 360px;
   padding: 8px;
+  overflow: hidden;
   border: 1px solid #26313d;
   border-radius: 8px;
   background: #0b0f14;
+}
+
+.terminal-surface .xterm {
+  width: 100%;
+  height: 100%;
 }
 
 .terminal-server-label {
@@ -4331,7 +4494,8 @@ button.vnc-health-chip:disabled {
 :root[data-theme='minimal'] .segmented button,
 :root[data-theme='minimal'] .tabs button,
 :root[data-theme='minimal'] .section-icon-button,
-:root[data-theme='minimal'] .container-action {
+:root[data-theme='minimal'] .container-action,
+:root[data-theme='minimal'] .update-dismiss {
   color: #1d1d1f;
   background: rgba(247, 250, 253, 0.68);
   border-color: rgba(130, 142, 160, 0.24);
@@ -4360,10 +4524,27 @@ button.vnc-health-chip:disabled {
 :root[data-theme='minimal'] .icon-command:hover,
 :root[data-theme='minimal'] .segmented button:hover,
 :root[data-theme='minimal'] .tabs button:hover,
-:root[data-theme='minimal'] .section-icon-button:hover:not(:disabled) {
+:root[data-theme='minimal'] .section-icon-button:hover:not(:disabled),
+:root[data-theme='minimal'] .update-dismiss:hover {
   color: #1d1d1f;
   background: rgba(250, 252, 255, 0.82);
   border-color: rgba(94, 109, 130, 0.28);
+}
+
+:root[data-theme='minimal'] .update-notice {
+  color: #1d1d1f;
+  background:
+    linear-gradient(135deg, rgba(0, 122, 255, 0.12), transparent 54%),
+    rgba(246, 249, 253, 0.78);
+  border-color: rgba(0, 122, 255, 0.24);
+  box-shadow: 0 10px 22px rgba(35, 56, 82, 0.08);
+}
+
+:root[data-theme='minimal'] .update-notice-icon,
+:root[data-theme='minimal'] .update-action {
+  color: #ffffff;
+  background: linear-gradient(180deg, #168bff, #007aff);
+  border-color: #007aff;
 }
 
 :root[data-theme='minimal'] .primary {
@@ -4519,6 +4700,35 @@ button.vnc-health-chip:disabled {
   padding: 16px;
 }
 
+:root[data-theme='minimal'] .server-topbar {
+  background:
+    linear-gradient(135deg, rgba(0, 122, 255, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(250, 252, 255, 0.84), rgba(232, 238, 247, 0.86));
+  border-color: rgba(130, 142, 160, 0.22);
+  box-shadow:
+    0 10px 24px rgba(18, 24, 38, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+:root[data-theme='minimal'] .server-topbar.offline {
+  background:
+    linear-gradient(135deg, rgba(220, 38, 38, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(255, 250, 250, 0.88), rgba(246, 232, 232, 0.82));
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+:root[data-theme='minimal'] .server-topbar.unknown {
+  background:
+    linear-gradient(135deg, rgba(234, 179, 8, 0.12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 253, 246, 0.88), rgba(246, 240, 220, 0.82));
+  border-color: rgba(234, 179, 8, 0.24);
+}
+
+:root[data-theme='minimal'] .server-topbar-metrics {
+  background: rgba(247, 250, 253, 0.7);
+  border-color: rgba(130, 142, 160, 0.2);
+}
+
 :root[data-theme='minimal'] .fleet-header h2 {
   font-size: 22px;
   font-weight: 760;
@@ -4583,7 +4793,7 @@ button.vnc-health-chip:disabled {
 
 :root[data-theme='minimal'] .metric-tile {
   background:
-    linear-gradient(145deg, rgba(var(--metric-rgb), 0.1), transparent 48%),
+    linear-gradient(145deg, color-mix(in srgb, var(--metric-color) 10%, transparent), transparent 48%),
     linear-gradient(180deg, rgba(250, 252, 255, 0.82), rgba(232, 238, 247, 0.84));
   border-color: rgba(130, 142, 160, 0.2);
   box-shadow:
@@ -4599,7 +4809,7 @@ button.vnc-health-chip:disabled {
   min-height: 116px;
   padding: 10px 7px;
   background:
-    linear-gradient(145deg, rgba(var(--metric-rgb), 0.09), transparent 52%),
+    linear-gradient(145deg, color-mix(in srgb, var(--metric-color) 9%, transparent), transparent 52%),
     linear-gradient(180deg, rgba(247, 250, 253, 0.76), rgba(229, 236, 246, 0.82));
 }
 
@@ -4633,7 +4843,7 @@ button.vnc-health-chip:disabled {
 :root[data-theme='minimal'] .overview .metric-tile {
   min-height: 184px;
   background:
-    linear-gradient(145deg, rgba(var(--metric-rgb), 0.11), transparent 48%),
+    linear-gradient(145deg, color-mix(in srgb, var(--metric-color) 11%, transparent), transparent 48%),
     linear-gradient(180deg, rgba(250, 252, 255, 0.82), rgba(232, 238, 247, 0.84));
 }
 
@@ -4780,14 +4990,18 @@ button.vnc-health-chip:disabled {
 
 :root[data-theme='minimal'] .process-kill,
 :root[data-theme='minimal'] .container-action.stop,
-:root[data-theme='minimal'] .container-action.disable {
+:root[data-theme='minimal'] .container-action.disable,
+:root[data-theme='minimal'] .compose-remove-row,
+:root[data-theme='minimal'] .vnc-connect-button.connected,
+:root[data-theme='minimal'] .vnc-connect-button.disconnecting {
   color: #b42318;
   background: #fff5f4;
   border-color: #fecdca;
 }
 
 :root[data-theme='minimal'] .container-action.start,
-:root[data-theme='minimal'] .container-action.enable {
+:root[data-theme='minimal'] .container-action.enable,
+:root[data-theme='minimal'] .vnc-connect-button.ready {
   color: #027a48;
   background: #ecfdf3;
   border-color: #abefc6;
@@ -5128,9 +5342,9 @@ button.vnc-health-chip:disabled {
 
 .metric-tile {
   background:
-    linear-gradient(180deg, rgba(var(--metric-rgb), 0.12), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--metric-color) 12%, transparent), transparent 58%),
     linear-gradient(180deg, #16212c, #111923);
-  border-color: rgba(var(--metric-rgb), 0.23);
+  border-color: color-mix(in srgb, var(--metric-color) 23%, transparent);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 12px 26px rgba(0, 0, 0, 0.18);
@@ -5826,93 +6040,9 @@ button.vnc-health-chip:disabled {
   [data-theme='one-dark']
 ) .metric-tile {
   background:
-    linear-gradient(180deg, rgba(var(--metric-rgb), 0.14), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--metric-color) 14%, transparent), transparent 58%),
     linear-gradient(180deg, var(--surface-2), var(--surface));
-  border-color: rgba(var(--metric-rgb), 0.26);
-}
-
-:root[data-theme='dracula'] .metric-tile.teal {
-  --metric-rgb: 139, 233, 253;
-}
-
-:root[data-theme='dracula'] .metric-tile.blue {
-  --metric-rgb: 189, 147, 249;
-}
-
-:root[data-theme='dracula'] .metric-tile.amber {
-  --metric-rgb: 241, 250, 140;
-}
-
-:root[data-theme='catppuccin'] .metric-tile.teal {
-  --metric-rgb: 148, 226, 213;
-}
-
-:root[data-theme='catppuccin'] .metric-tile.blue {
-  --metric-rgb: 137, 180, 250;
-}
-
-:root[data-theme='catppuccin'] .metric-tile.amber {
-  --metric-rgb: 249, 226, 175;
-}
-
-:root[data-theme='solarized'] .metric-tile.teal {
-  --metric-rgb: 42, 161, 152;
-}
-
-:root[data-theme='solarized'] .metric-tile.blue {
-  --metric-rgb: 38, 139, 210;
-}
-
-:root[data-theme='solarized'] .metric-tile.amber {
-  --metric-rgb: 181, 137, 0;
-}
-
-:root[data-theme='nord'] .metric-tile.teal {
-  --metric-rgb: 143, 188, 187;
-}
-
-:root[data-theme='nord'] .metric-tile.blue {
-  --metric-rgb: 136, 192, 208;
-}
-
-:root[data-theme='nord'] .metric-tile.amber {
-  --metric-rgb: 235, 203, 139;
-}
-
-:root[data-theme='gruvbox'] .metric-tile.teal {
-  --metric-rgb: 142, 192, 124;
-}
-
-:root[data-theme='gruvbox'] .metric-tile.blue {
-  --metric-rgb: 131, 165, 152;
-}
-
-:root[data-theme='gruvbox'] .metric-tile.amber {
-  --metric-rgb: 250, 189, 47;
-}
-
-:root[data-theme='tokyo-night'] .metric-tile.teal {
-  --metric-rgb: 125, 207, 255;
-}
-
-:root[data-theme='tokyo-night'] .metric-tile.blue {
-  --metric-rgb: 122, 162, 247;
-}
-
-:root[data-theme='tokyo-night'] .metric-tile.amber {
-  --metric-rgb: 224, 175, 104;
-}
-
-:root[data-theme='one-dark'] .metric-tile.teal {
-  --metric-rgb: 86, 182, 194;
-}
-
-:root[data-theme='one-dark'] .metric-tile.blue {
-  --metric-rgb: 97, 175, 239;
-}
-
-:root[data-theme='one-dark'] .metric-tile.amber {
-  --metric-rgb: 229, 192, 123;
+  border-color: color-mix(in srgb, var(--metric-color) 26%, transparent);
 }
 
 :root .fleet-card,
@@ -5980,6 +6110,18 @@ button.vnc-health-chip:disabled {
 }
 
 :root[data-theme] {
+  --scheme-primary: var(--teal);
+  --scheme-on-primary: color-mix(in srgb, var(--bg) 86%, #000000);
+  --scheme-primary-container: color-mix(in srgb, var(--teal) 24%, var(--surface-2));
+  --scheme-on-primary-container: var(--text);
+  --scheme-surface: var(--surface);
+  --scheme-surface-variant: var(--surface-2);
+  --scheme-on-surface: var(--text);
+  --scheme-on-surface-variant: var(--muted);
+  --scheme-outline: var(--line);
+  --scheme-outline-variant: var(--line-soft);
+  --scheme-error: var(--status-red);
+  --scheme-on-error: color-mix(in srgb, var(--bg) 84%, #000000);
   --theme-bg-deep: color-mix(in srgb, var(--bg) 82%, #000000);
   --theme-bg-soft: color-mix(in srgb, var(--bg) 88%, var(--surface));
   --theme-panel: linear-gradient(180deg, var(--surface-2), var(--surface));
@@ -6006,6 +6148,12 @@ button.vnc-health-chip:disabled {
   --theme-server-card-active-shadow: inset 3px 0 0 var(--purple), 0 10px 24px color-mix(in srgb, var(--purple) 10%, transparent);
   --theme-control: linear-gradient(180deg, var(--surface-2), color-mix(in srgb, var(--surface) 86%, #000000));
   --theme-control-hover: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  --theme-primary-control: linear-gradient(180deg, color-mix(in srgb, var(--scheme-primary) 72%, var(--blue)), var(--scheme-primary));
+  --theme-primary-control-hover: linear-gradient(180deg, color-mix(in srgb, var(--scheme-primary) 78%, var(--blue)), color-mix(in srgb, var(--scheme-primary) 92%, #ffffff));
+  --theme-primary-control-line: color-mix(in srgb, var(--scheme-primary) 72%, var(--scheme-outline));
+  --theme-primary-control-hover-line: color-mix(in srgb, var(--scheme-primary) 86%, var(--scheme-outline));
+  --theme-primary-control-shadow: 0 10px 22px color-mix(in srgb, var(--scheme-primary) 16%, transparent);
+  --theme-gauge-track: color-mix(in srgb, var(--muted) 52%, transparent);
   --theme-input: color-mix(in srgb, var(--surface) 74%, #000000);
   --theme-code: color-mix(in srgb, var(--surface) 58%, #000000);
   --theme-active-bg: color-mix(in srgb, var(--purple) 16%, transparent);
@@ -6024,6 +6172,15 @@ button.vnc-health-chip:disabled {
 }
 
 :root[data-theme='neo'] {
+  --teal: #00ffe0;
+  --blue: #33aaff;
+  --green: #39ff88;
+  --amber: #faff5a;
+  --red: #ff2f6d;
+  --status-green: #39ff88;
+  --status-yellow: #faff5a;
+  --status-red: #ff2f6d;
+  --purple: #d946ff;
   --theme-fleet-card: linear-gradient(180deg, #0c1218, #070b10);
   --theme-fleet-card-hover: linear-gradient(180deg, #101922, #0a1017);
   --theme-fleet-card-line: transparent;
@@ -6043,9 +6200,35 @@ button.vnc-health-chip:disabled {
   --theme-server-card-active-shadow:
     inset 3px 0 0 var(--teal),
     0 10px 24px rgba(45, 212, 191, 0.09);
+  --scheme-primary: var(--text);
+  --scheme-on-primary: var(--text);
+  --theme-primary-control: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 88%, #000000), color-mix(in srgb, var(--surface) 90%, #000000));
+  --theme-primary-control-hover: linear-gradient(180deg, color-mix(in srgb, var(--surface-3) 84%, #000000), color-mix(in srgb, var(--surface-2) 88%, #000000));
+  --theme-primary-control-line: color-mix(in srgb, var(--line) 92%, transparent);
+  --theme-primary-control-hover-line: color-mix(in srgb, var(--line) 100%, var(--purple));
+  --theme-primary-control-shadow:
+    0 8px 18px color-mix(in srgb, #000000 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent);
+  --theme-gauge-track: color-mix(in srgb, var(--blue) 20%, color-mix(in srgb, var(--muted) 34%, transparent));
+}
+
+:root[data-theme='catppuccin'] {
+  --scheme-primary: var(--purple);
+  --scheme-on-primary: #f5e0dc;
+  --theme-primary-control:
+    linear-gradient(180deg, color-mix(in srgb, #cba6f7 26%, #242438), color-mix(in srgb, #89b4fa 16%, #1e1e2e));
+  --theme-primary-control-hover:
+    linear-gradient(180deg, color-mix(in srgb, #cba6f7 32%, #313244), color-mix(in srgb, #89b4fa 20%, #242438));
+  --theme-primary-control-line: color-mix(in srgb, #cba6f7 34%, var(--line));
+  --theme-primary-control-hover-line: color-mix(in srgb, #cba6f7 46%, var(--line));
+  --theme-primary-control-shadow:
+    0 8px 18px rgba(17, 17, 27, 0.22),
+    inset 0 1px 0 rgba(245, 224, 220, 0.06);
 }
 
 :root[data-theme='minimal'] {
+  --scheme-primary: var(--blue);
+  --scheme-on-primary: #ffffff;
   --theme-fleet-card: linear-gradient(180deg, rgba(239, 244, 251, 0.92), rgba(222, 230, 241, 0.94));
   --theme-fleet-card-hover: linear-gradient(180deg, rgba(232, 239, 249, 0.96), rgba(214, 224, 238, 0.98));
   --theme-fleet-card-line: rgba(111, 124, 145, 0.24);
@@ -6066,6 +6249,12 @@ button.vnc-health-chip:disabled {
   --theme-server-card-active-shadow:
     inset 3px 0 0 #007aff,
     0 8px 18px rgba(0, 122, 255, 0.08);
+  --theme-primary-control: linear-gradient(180deg, #168bff, #007aff);
+  --theme-primary-control-hover: linear-gradient(180deg, #2d98ff, #087fff);
+  --theme-primary-control-line: #007aff;
+  --theme-primary-control-hover-line: #007aff;
+  --theme-primary-control-shadow: 0 8px 18px rgba(0, 122, 255, 0.18);
+  --theme-gauge-track: rgba(137, 151, 170, 0.24);
 }
 
 :root[data-theme] body {
@@ -6112,13 +6301,19 @@ button.vnc-health-chip:disabled {
 }
 
 :root[data-theme] :is(.primary, .command.full) {
-  color: color-mix(in srgb, var(--bg) 86%, #000000);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--teal) 72%, var(--blue)), var(--teal));
-  border-color: color-mix(in srgb, var(--teal) 72%, var(--line));
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--teal) 16%, transparent);
+  color: var(--scheme-on-primary);
+  background: var(--theme-primary-control);
+  border-color: var(--theme-primary-control-line);
+  box-shadow: var(--theme-primary-control-shadow);
 }
 
-:root[data-theme] :is(.danger, .process-kill, .container-action.stop, .container-action.disable) {
+:root[data-theme] :is(.primary, .command.full):hover {
+  color: var(--scheme-on-primary);
+  background: var(--theme-primary-control-hover);
+  border-color: var(--theme-primary-control-hover-line);
+}
+
+:root[data-theme] :is(.danger, .process-kill, .container-action.stop, .container-action.disable, .compose-remove-row, .vnc-connect-button.connected, .vnc-connect-button.disconnecting) {
   color: var(--status-red);
   background: var(--theme-danger-bg);
   border-color: var(--theme-danger-line);
@@ -6131,10 +6326,16 @@ button.vnc-health-chip:disabled {
   box-shadow: var(--card-shadow);
 }
 
-:root[data-theme] :is(.server-row, .fleet-row, .process-row, .container-row, .service-entry, .service-row, .file-row, .detail-stat, .mini-stat, .container-server-cell, .compose-meta span, .temperature-summary span) {
+:root[data-theme] :is(.server-row, .fleet-row, .process-row, .container-row, .service-entry, .service-row, .file-row, .detail-stat, .mini-stat, .compose-meta span, .temperature-summary span) {
   color: var(--text);
   background: var(--theme-panel-flat);
   border-color: var(--line-soft);
+}
+
+:root[data-theme] .container-server-cell {
+  color: var(--text);
+  background: transparent;
+  border-color: transparent;
 }
 
 :root[data-theme] :is(.server-row:hover, .fleet-row:hover, .fleet-card:hover, .process-row:not(.header):hover, .container-row:not(.header):hover, .file-row:hover) {
@@ -6215,7 +6416,7 @@ button.vnc-health-chip:disabled {
   border-color: var(--theme-neutral-line);
 }
 
-:root[data-theme] :is(.server-dot.online, .status-orb.online, .container-status.running, .service-status.running, .service-enabled.enabled, .badge.good, .container-action.start, .container-action.enable, .service-action-feedback.success) {
+:root[data-theme] :is(.server-dot.online, .status-orb.online, .container-status.running, .service-status.running, .service-enabled.enabled, .badge.good, .container-action.start, .container-action.enable, .service-action-feedback.success, .vnc-connect-button.ready) {
   color: var(--status-green);
   background: var(--theme-success-bg);
   border-color: var(--theme-success-line);
@@ -6227,7 +6428,7 @@ button.vnc-health-chip:disabled {
   border-color: var(--theme-warning-line);
 }
 
-:root[data-theme] :is(.server-dot.offline, .status-orb.offline, .container-status.exited, .service-status.failed, .service-enabled.disabled, .badge.bad, .service-action-feedback.error, .container-action.stop, .container-action.disable) {
+:root[data-theme] :is(.server-dot.offline, .status-orb.offline, .container-status.exited, .service-status.failed, .service-enabled.disabled, .badge.bad, .service-action-feedback.error, .container-action.stop, .container-action.disable, .vnc-connect-button.connected, .vnc-connect-button.disconnecting) {
   color: var(--status-red);
   background: var(--theme-danger-bg);
   border-color: var(--theme-danger-line);
@@ -6306,6 +6507,10 @@ button.vnc-health-chip:disabled {
 
 :root[data-theme] :is(.container-name-link, .temperature-row.selected .temperature-choice, .metric-value, .gauge-center strong, .mini-stat strong, .detail-value) {
   color: var(--text);
+}
+
+:root[data-theme] .metric-tile :is(.metric-value, .gauge-center, .gauge-center strong) {
+  color: color-mix(in srgb, var(--metric-color) 72%, var(--text));
 }
 
 :root[data-theme] .compact-metric-icon.temp {
@@ -6396,34 +6601,227 @@ button.vnc-health-chip:disabled {
   border-color: rgba(148, 163, 184, 0.24) !important;
 }
 
-:root[data-theme='neo'] .command.full {
-  color: var(--text);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 88%, #000000), color-mix(in srgb, var(--surface) 90%, #000000)) !important;
-  border-color: color-mix(in srgb, var(--line) 92%, transparent) !important;
-  box-shadow:
-    0 8px 18px color-mix(in srgb, #000000 18%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) !important;
-}
-
-:root[data-theme='neo'] .command.full:hover {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-3) 84%, #000000), color-mix(in srgb, var(--surface-2) 88%, #000000)) !important;
-  border-color: color-mix(in srgb, var(--line) 100%, var(--purple)) !important;
-}
-
-:root[data-theme='catppuccin'] .command.full {
-  color: #f5e0dc;
+:root[data-theme='neo'] .app-shell::before {
+  opacity: 0.24;
   background:
-    linear-gradient(180deg, color-mix(in srgb, #cba6f7 26%, #242438), color-mix(in srgb, #89b4fa 16%, #1e1e2e)) !important;
-  border-color: color-mix(in srgb, #cba6f7 34%, var(--line)) !important;
-  box-shadow:
-    0 8px 18px rgba(17, 17, 27, 0.22),
-    inset 0 1px 0 rgba(245, 224, 220, 0.06) !important;
+    linear-gradient(90deg, color-mix(in srgb, var(--teal) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(180deg, color-mix(in srgb, var(--purple) 10%, transparent) 1px, transparent 1px);
 }
 
-:root[data-theme='catppuccin'] .command.full:hover {
+:root[data-theme='neo'] .brand-mark {
+  background: linear-gradient(145deg, var(--blue), var(--teal) 52%, var(--purple));
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--teal) 34%, transparent),
+    0 0 34px color-mix(in srgb, var(--purple) 18%, transparent);
+}
+
+:root[data-theme='neo'] :is(.server-topbar, .fleet-header, .panel-toolbar) {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--teal) 6%, transparent),
+    0 14px 30px color-mix(in srgb, #000000 18%, transparent),
+    0 0 28px color-mix(in srgb, var(--teal) 7%, transparent) !important;
+}
+
+:root[data-theme='neo'] :is(.server-row.active, .fleet-row.active, .server-row.active:hover, .fleet-row.active:hover) {
+  box-shadow:
+    inset 3px 0 0 var(--teal),
+    0 0 18px color-mix(in srgb, var(--teal) 18%, transparent),
+    0 10px 22px rgba(0, 0, 0, 0.2) !important;
+}
+
+:root[data-theme='neo'] .fleet-card:hover {
+  border-color: color-mix(in srgb, var(--teal) 28%, rgba(148, 163, 184, 0.2)) !important;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.24),
+    0 0 34px color-mix(in srgb, var(--teal) 10%, transparent),
+    0 0 44px color-mix(in srgb, var(--purple) 7%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+:root[data-theme='neo'] .metric-tile {
+  border-color: color-mix(in srgb, var(--metric-color) 34%, transparent) !important;
   background:
-    linear-gradient(180deg, color-mix(in srgb, #cba6f7 32%, #313244), color-mix(in srgb, #89b4fa 20%, #242438)) !important;
-  border-color: color-mix(in srgb, #cba6f7 46%, var(--line)) !important;
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--metric-color) 18%, transparent), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--metric-color) 9%, #17212b), #0f1720) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 28px color-mix(in srgb, var(--metric-color) 10%, transparent),
+    0 0 24px color-mix(in srgb, var(--metric-color) 8%, transparent) !important;
+}
+
+:root[data-theme='neo'] .metric-tile:hover,
+:root[data-theme='neo'] .fleet-card:hover .metric-tile {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    inset 0 0 34px color-mix(in srgb, var(--metric-color) 16%, transparent),
+    0 0 28px color-mix(in srgb, var(--metric-color) 22%, transparent),
+    0 16px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+:root[data-theme='neo'] .gauge-fill {
+  filter:
+    drop-shadow(0 0 8px color-mix(in srgb, var(--metric-color) 72%, transparent))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--metric-color) 36%, transparent));
+}
+
+:root[data-theme='neo'] .metric-tile:hover .gauge-fill,
+:root[data-theme='neo'] .fleet-card:hover .gauge-fill {
+  filter:
+    drop-shadow(0 0 10px color-mix(in srgb, var(--metric-color) 88%, transparent))
+    drop-shadow(0 0 24px color-mix(in srgb, var(--metric-color) 52%, transparent));
+}
+
+:root[data-theme='neo'] :is(.status-orb.online, .server-dot.online) {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--status-green) 22%, transparent),
+    0 0 20px color-mix(in srgb, var(--status-green) 56%, transparent),
+    0 0 34px color-mix(in srgb, var(--status-green) 28%, transparent);
+}
+
+.wallpaper-board {
+  position: relative;
+  min-width: 0;
+  border-radius: 8px;
+}
+
+.wallpaper-board.has-wallpaper {
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--surface) 74%, #000000);
+  border-color: color-mix(in srgb, var(--line) 62%, transparent);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper {
+  background-attachment: local !important;
+  background-clip: border-box !important;
+  background-origin: border-box !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+}
+
+.wallpaper-board.has-wallpaper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 28%, transparent), color-mix(in srgb, #000000 20%, transparent)),
+    color-mix(in srgb, var(--bg) 10%, transparent);
+}
+
+.wallpaper-board.has-wallpaper > * {
+  position: relative;
+  z-index: 1;
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .fleet-card,
+:root[data-theme='minimal'] .wallpaper-board.has-wallpaper .fleet-card,
+:root[data-theme='neo'] .wallpaper-board.has-wallpaper .fleet-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--scheme-surface) 75%, transparent), color-mix(in srgb, var(--scheme-surface) 75%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--line) 76%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .fleet-card:hover,
+:root[data-theme='minimal'] .wallpaper-board.has-wallpaper .fleet-card:hover,
+:root[data-theme='neo'] .wallpaper-board.has-wallpaper .fleet-card:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--scheme-surface-variant) 75%, transparent), color-mix(in srgb, var(--scheme-surface) 75%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--line) 88%, transparent) !important;
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .fleet-header {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--scheme-primary) 14%, transparent), transparent 48%),
+    color-mix(in srgb, var(--scheme-surface) 75%, transparent) !important;
+  border-color: color-mix(in srgb, var(--scheme-outline) 72%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-app-card {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--container-accent, #8ab4ff) 16%, transparent), transparent 62%),
+    color-mix(in srgb, var(--scheme-surface) 75%, transparent) !important;
+  border-color: color-mix(in srgb, var(--line) 64%, transparent);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-app-card:hover,
+:root[data-theme] .wallpaper-board.has-wallpaper .container-app-card:focus-within,
+:root[data-theme] .wallpaper-board.has-wallpaper .container-app-card.menu-open {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--container-accent, #8ab4ff) 22%, transparent), transparent 58%),
+    color-mix(in srgb, var(--scheme-surface-variant) 75%, transparent) !important;
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-table {
+  background: color-mix(in srgb, var(--scheme-surface) 75%, transparent) !important;
+  border-color: color-mix(in srgb, var(--line) 72%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-row {
+  background: color-mix(in srgb, var(--scheme-surface) 52%, transparent);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-row.header {
+  background: color-mix(in srgb, var(--scheme-surface-variant) 75%, transparent);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-row:not(.header):hover {
+  background: color-mix(in srgb, var(--scheme-surface-variant) 75%, transparent);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-message {
+  padding: 10px 12px;
+  color: var(--scheme-on-surface);
+  background: color-mix(in srgb, var(--scheme-surface) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--scheme-outline) 66%, transparent);
+  border-radius: 8px;
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+:root[data-theme] .wallpaper-board.has-wallpaper .container-message strong {
+  color: var(--scheme-on-surface);
+}
+
+.wallpaper-upload-input {
+  display: none;
+}
+
+.wallpaper-upload-fab {
+  position: fixed;
+  right: max(28px, env(safe-area-inset-right));
+  bottom: max(28px, env(safe-area-inset-bottom));
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 13px;
+  color: var(--scheme-on-primary);
+  background: var(--theme-primary-control);
+  border: 1px solid var(--theme-primary-control-line);
+  border-radius: 999px;
+  box-shadow:
+    0 18px 36px color-mix(in srgb, #000000 28%, transparent),
+    var(--theme-primary-control-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.wallpaper-upload-fab:hover:not(:disabled) {
+  transform: translateY(-2px);
+  color: var(--scheme-on-primary);
+  background: var(--theme-primary-control-hover);
+  border-color: var(--theme-primary-control-hover-line);
+}
+
+.wallpaper-upload-fab:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 :root[data-theme] .container-name-link:not(:disabled):hover {

@@ -38,6 +38,29 @@ export interface AppPreferences {
   containers: ContainerPreferences;
 }
 
+export interface AppVersionInfo {
+  name: 'HomeDashboard';
+  currentVersion: string;
+  revision?: string;
+  buildDate?: string;
+  update: AppUpdateInfo;
+}
+
+export interface AppUpdateInfo {
+  enabled: boolean;
+  available: boolean;
+  latestVersion?: string;
+  releaseUrl: string;
+  checkedAt?: string;
+  error?: string;
+}
+
+export interface AppWallpaperInfo {
+  exists: boolean;
+  url?: string;
+  updatedAt?: string;
+}
+
 export interface ServerProfile {
   id: string;
   alias: string;
