@@ -3324,6 +3324,11 @@ button:disabled {
   overflow: hidden;
   color: #d8e3ee;
   font-weight: 800;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6334,8 +6339,9 @@ button.vnc-health-chip:disabled {
 
 :root[data-theme] .container-server-cell {
   color: var(--text);
-  background: transparent;
-  border-color: transparent;
+  background: none;
+  border: 0;
+  box-shadow: none;
 }
 
 :root[data-theme] :is(.server-row:hover, .fleet-row:hover, .fleet-card:hover, .process-row:not(.header):hover, .container-row:not(.header):hover, .file-row:hover) {
