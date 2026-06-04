@@ -484,7 +484,11 @@ button:disabled {
 
 .server-list {
   display: grid;
+  flex: 1 1 auto;
   gap: 8px;
+  align-content: start;
+  grid-auto-rows: min-content;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -1089,6 +1093,16 @@ button:disabled {
   animation: pop-in 160ms ease-out;
 }
 
+.sidebar-bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-top: auto;
+}
+
 .update-notice-heading {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 28px;
@@ -1178,6 +1192,10 @@ button:disabled {
   padding: 3px 5px 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.sidebar-bottom .app-version {
+  margin-top: 0;
 }
 
 .app-version span {

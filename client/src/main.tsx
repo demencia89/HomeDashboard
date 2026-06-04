@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   BellRing,
   Container,
-  Download,
   Edit3,
   ExternalLink,
   Folder,
@@ -548,14 +547,6 @@ function App() {
         <button className="command full" onClick={startCreate}>
           <Plus size={16} /> New Server
         </button>
-        <UpdateNotice
-          versionInfo={appVersion}
-          dismissedVersion={dismissedUpdateVersion}
-          onDismiss={(version) => {
-            writeDismissedUpdateVersion(version);
-            setDismissedUpdateVersion(version);
-          }}
-        />
         <button className={!selectedId && activeView === 'overview' ? 'fleet-row active' : 'fleet-row'} onClick={showFleet}>
           <span className={`server-dot ${fleetOnlineState}`} />
           <span>
@@ -598,7 +589,17 @@ function App() {
             );
           })}
         </nav>
-        <AppVersionFooter versionInfo={appVersion} />
+        <div className="sidebar-bottom">
+          <UpdateNotice
+            versionInfo={appVersion}
+            dismissedVersion={dismissedUpdateVersion}
+            onDismiss={(version) => {
+              writeDismissedUpdateVersion(version);
+              setDismissedUpdateVersion(version);
+            }}
+          />
+          <AppVersionFooter versionInfo={appVersion} />
+        </div>
       </aside>
 
       <section className={selectedServer ? 'workspace' : 'workspace fleet-workspace'}>
@@ -831,7 +832,7 @@ function UpdateNotice({
         </button>
       </div>
       <button type="button" className="update-action" onClick={openUpdate}>
-        <Download size={15} /> Update
+        <ExternalLink size={15} /> Release notes
       </button>
     </section>
   );

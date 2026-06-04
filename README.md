@@ -164,7 +164,7 @@ Runtime configuration is provided by environment variables:
 - `APP_VERSION`, `APP_REVISION`, `APP_BUILD_DATE`: optional build metadata shown in the UI. If `APP_VERSION` is unset, HomeDashboard uses the package version.
 - `APP_UPDATE_CHECK_DISABLED`: set to `true` to disable the outbound update check.
 - `APP_UPDATE_CHECK_URL`: JSON endpoint used to discover the latest version. It may return GitHub release JSON (`tag_name`, `html_url`) or generic JSON (`version`, `releaseUrl`).
-- `APP_UPDATE_URL`: URL opened by the Update button when a newer version is available.
+- `APP_UPDATE_URL`: URL opened by the Release notes button when a newer version is available.
 - `APP_UPDATE_CHECK_INTERVAL_MS`: server-side update check cache interval, defaults to `21600000` ms.
 - `AUTH_FAILURE_RATE_LIMIT_MAX`, `AUTH_FAILURE_RATE_LIMIT_WINDOW_MS`: failed Basic auth attempts per client before `429`, defaults to `20` per `300000` ms.
 - `EXPENSIVE_HTTP_RATE_LIMIT_MAX`, `EXPENSIVE_HTTP_RATE_LIMIT_WINDOW_MS`: SSH-backed HTTP API requests per client, defaults to `180` per `60000` ms.
@@ -212,7 +212,23 @@ The sidebar theme picker changes the app palette across the dashboard, including
 
 ## Version And Updates
 
-HomeDashboard displays its current version in the sidebar. By default, the Docker Compose configuration points the update checker at the latest GitHub release for this repository. If a newer release is available, the sidebar shows an update notice that can be opened or dismissed. Set `APP_UPDATE_CHECK_DISABLED=true` to disable outbound update checks, or override `APP_UPDATE_CHECK_URL` and `APP_UPDATE_URL` for another release channel.
+HomeDashboard displays its current version in the sidebar. By default, the Docker Compose configuration points the update checker at the latest GitHub release for this repository. If a newer release is available, the sidebar shows a bottom-sticky update notice that opens the release notes or can be dismissed. Set `APP_UPDATE_CHECK_DISABLED=true` to disable outbound update checks, or override `APP_UPDATE_CHECK_URL` and `APP_UPDATE_URL` for another release channel.
+
+HomeDashboard does not self-update from inside the app. Updating is an operator action because the app would otherwise need host-level Docker or filesystem control. For source-based installs, update from the host running the project:
+
+```bash
+cd /path/to/HomeDashboard
+git pull --ff-only
+docker compose up -d --build
+```
+
+If you build on another machine and copy the image to an ARM64 host, use the same release source and reload the image on the target:
+
+```bash
+docker buildx build --platform linux/arm64 --tag home-dashboard:latest --output type=docker,dest=/tmp/home-dashboard-arm64.tar .
+scp /tmp/home-dashboard-arm64.tar user@host:/tmp/home-dashboard-arm64.tar
+ssh user@host "cd '/path/to/HomeDashboard' && docker load -i '/tmp/home-dashboard-arm64.tar' && rm -f '/tmp/home-dashboard-arm64.tar' && docker compose up -d --no-build --force-recreate home-dashboard"
+```
 
 ## Security Notes
 
