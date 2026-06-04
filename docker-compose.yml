@@ -19,7 +19,7 @@ services:
     ports:
       - "${PORT_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     volumes:
-      - ./config:/config
+      - ${CONFIG_HOST_DIR:-./config}:/config
     labels:
       icon: ${APP_ICON_URL:-/icon.svg}
       io.casaos.app.type: system

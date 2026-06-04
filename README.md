@@ -4,12 +4,14 @@ HomeDashboard is a lightweight self-hosted server dashboard for monitoring and m
 
 ## Screenshots
 
-![Fleet overview](docs/screenshots/overview-desktop.png)
+![HomeDashboard overview](docs/screenshots/overview-desktop.png)
 
 <p>
-  <img src="docs/screenshots/server-overview-desktop.png" alt="Server overview" width="49%">
-  <img src="docs/screenshots/containers-desktop.png" alt="Container apps" width="49%">
+  <img src="docs/screenshots/containers-desktop.png" alt="Container management" width="49%">
+  <img src="docs/screenshots/services-desktop.png" alt="Service management" width="49%">
 </p>
+
+<img src="docs/screenshots/overview-mobile.png" alt="Mobile overview" width="360">
 
 ## Quick Start
 
@@ -27,6 +29,8 @@ Default login:
 - Password: `change-me`
 
 The included `docker-compose.yml` is intentionally runnable as-is for a first local test, but those credentials are public defaults. Before using HomeDashboard for real, copy `.env.example` to `.env` and change at least `AUTH_USERNAME`, `AUTH_PASSWORD`, and preferably `ENCRYPTION_KEY`. The default Compose port binding is `127.0.0.1:3000`, so the dashboard is reachable from the host only unless you explicitly change `PORT_BIND_ADDRESS`.
+
+For regular use, set `CONFIG_HOST_DIR` in `.env` to a durable private path outside the repository, such as `/home/your-user/.config/home-dashboard`, so SSH keys and saved server profiles do not live in the source tree.
 
 To stop it:
 
@@ -104,7 +108,7 @@ services:
     ports:
       - "${PORT_BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     volumes:
-      - ./config:/config
+      - ${CONFIG_HOST_DIR:-./config}:/config
 ```
 
 Run it directly for a local trial:
@@ -122,7 +126,7 @@ Recommended edits before regular use:
 - Set a real `AUTH_USERNAME` and a long random `AUTH_PASSWORD`.
 - Set a long random `ENCRYPTION_KEY` and keep it with encrypted backups.
 - Keep `PORT_BIND_ADDRESS=127.0.0.1` for local/VPN/reverse-proxy access, or bind to a specific LAN IP with firewall rules.
-- Mount `./config:/config` on storage that is backed up securely and not synced to untrusted cloud storage.
+- Set `CONFIG_HOST_DIR` to durable private storage that is backed up securely and not synced to untrusted cloud storage.
 - Prefer dedicated SSH keys for managed servers instead of reusing a personal login key.
 
 By default Compose publishes the dashboard on localhost only:
@@ -139,6 +143,7 @@ Runtime configuration is provided by environment variables:
 
 - `AUTH_USERNAME` and `AUTH_PASSWORD`: HTTP basic-auth credentials.
 - `AUTH_DISABLED`: set to `true` only for trusted private deployments.
+- `CONFIG_HOST_DIR`: Docker Compose host path mounted into the container as `/config`; defaults to `./config`.
 - `CONFIG_DIR`: persistent configuration directory, defaults to `/config`.
 - `LOCAL_FILE_ROOT`: root for local file operations, defaults to `/config/files`.
 - `ENCRYPTION_KEY`: optional master secret for stored server passwords. If omitted, HomeDashboard creates `/config/.secret_key`.

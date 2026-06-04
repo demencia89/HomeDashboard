@@ -5,6 +5,14 @@ coverage
 .git
 .env
 .env.*
+docker-compose.override.yml
+compose.local.yml
+AGENTS.md
+.agents
+.codex
+tests
+ops/deploy-pixel.sh
+ops/terminal-droid-deploy.md
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
