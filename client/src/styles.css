@@ -21,6 +21,9 @@
   --status-green: #22c55e;
   --status-yellow: #facc15;
   --status-red: #f43f5e;
+  --compact-temp-color: var(--red);
+  --compact-disk-color: var(--amber);
+  --compact-network-color: var(--purple);
   --purple: #a78bfa;
   --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
   --card-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
@@ -1646,15 +1649,15 @@ button:disabled {
 }
 
 .compact-metric-icon.temp {
-  color: var(--status-red);
+  color: var(--compact-temp-color);
 }
 
 .compact-metric-icon.disk {
-  color: var(--status-yellow);
+  color: var(--compact-disk-color);
 }
 
 .compact-metric-icon.network {
-  color: #a78bfa;
+  color: var(--compact-network-color);
 }
 
 .compact-metric-value {
@@ -2908,6 +2911,8 @@ button:disabled {
   justify-content: center;
   min-width: 0;
   height: 22px;
+  min-height: 22px;
+  max-height: 22px;
   overflow: hidden;
   background: #17222d;
   border: 1px solid color-mix(in srgb, var(--disk-usage-color) 36%, transparent);
@@ -2926,9 +2931,12 @@ button:disabled {
 
 .disk-usage-bar span {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 100%;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  min-width: 0;
   background: linear-gradient(90deg, var(--disk-usage-color-start), var(--disk-usage-color));
+  border-radius: inherit;
 }
 
 .disk-usage-bar strong {
@@ -5963,6 +5971,9 @@ button.vnc-health-chip:disabled {
   --theme-danger-line: color-mix(in srgb, var(--status-red) 52%, var(--line));
   --theme-neutral-bg: color-mix(in srgb, var(--muted) 14%, transparent);
   --theme-neutral-line: color-mix(in srgb, var(--muted) 28%, var(--line));
+  --compact-temp-color: color-mix(in srgb, var(--red) 86%, var(--text));
+  --compact-disk-color: color-mix(in srgb, var(--amber) 88%, var(--text));
+  --compact-network-color: color-mix(in srgb, var(--purple) 82%, var(--blue));
 }
 
 :root[data-theme] body {
@@ -6163,8 +6174,20 @@ button.vnc-health-chip:disabled {
   border-color: color-mix(in srgb, var(--purple) 34%, var(--line));
 }
 
-:root[data-theme] :is(.container-name-link, .temperature-row.selected .temperature-choice, .compact-metric-icon, .metric-value, .gauge-center strong, .mini-stat strong, .detail-value) {
+:root[data-theme] :is(.container-name-link, .temperature-row.selected .temperature-choice, .metric-value, .gauge-center strong, .mini-stat strong, .detail-value) {
   color: var(--text);
+}
+
+:root[data-theme] .compact-metric-icon.temp {
+  color: var(--compact-temp-color);
+}
+
+:root[data-theme] .compact-metric-icon.disk {
+  color: var(--compact-disk-color);
+}
+
+:root[data-theme] .compact-metric-icon.network {
+  color: var(--compact-network-color);
 }
 
 :root[data-theme] .container-name-link:not(:disabled):hover {

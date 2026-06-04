@@ -149,7 +149,7 @@ export function Overview({
                   aria-valuemax={100}
                   aria-valuenow={diskUsagePercent}
                 >
-                  <span />
+                  <span style={{ width: `${diskUsagePercent}%` }} />
                   <strong>{disk.percentage}%</strong>
                 </div>
                 <small>{formatFilesystemSize(disk.used)} / {formatFilesystemSize(disk.total)}</small>
