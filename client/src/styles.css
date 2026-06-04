@@ -3734,12 +3734,13 @@ button.vnc-health-chip:disabled {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(120deg, transparent 18%, color-mix(in srgb, var(--container-accent, #8ab4ff) 20%, transparent), transparent 46%);
+  background: linear-gradient(120deg, transparent 24%, color-mix(in srgb, var(--container-accent, #8ab4ff) 20%, transparent) 42%, transparent 58%) no-repeat;
+  background-position: 115% 0;
+  background-size: 260% 100%;
   opacity: 0;
   border-radius: inherit;
   clip-path: inset(0 round 8px);
-  transform: translateX(-62%);
-  transition: opacity 160ms ease, transform 520ms cubic-bezier(0.2, 0, 0.2, 1);
+  transition: opacity 160ms ease, background-position 520ms cubic-bezier(0.2, 0, 0.2, 1);
 }
 
 .container-app-card.dragging {
@@ -3771,7 +3772,7 @@ button.vnc-health-chip:disabled {
 .container-app-card:focus-within::before,
 .container-app-card.menu-open::before {
   opacity: 1;
-  transform: translateX(66%);
+  background-position: -15% 0;
 }
 
 .container-app-launch {
