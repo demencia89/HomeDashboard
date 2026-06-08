@@ -2,7 +2,7 @@ import type { RawData, WebSocket } from 'ws';
 import type { KeyStore } from '../storage/key-store.js';
 import type { JsonStore } from '../storage/json-store.js';
 import { buildOfflineMetrics, collectTelemetry, type SystemMetrics } from './telemetryService.js';
-import { normalizeSshError, resolveSshTarget } from './sshConnection.js';
+import { normalizeSshError, resolveSshTarget, SshConnectionPool } from './sshConnection.js';
 import { WebSocketMessageLimiter } from '../security/rate-limit.js';
 
 export type MetricsRefreshRate = 0 | 5000 | 10000 | 30000 | 60000;
@@ -45,6 +45,7 @@ export class MetricsStreamHub {
   private readonly serverStates = new Map<string, MetricsServerState>();
   private readonly clients = new Set<MetricsClientSubscription>();
   private readonly messageLimiter = new WebSocketMessageLimiter();
+  private readonly sshPool = new SshConnectionPool();
 
   constructor(
     private readonly store: JsonStore,
@@ -128,6 +129,7 @@ export class MetricsStreamHub {
 
     this.serverStates.clear();
     this.clients.clear();
+    this.sshPool.closeAll();
   }
 
   private updateSubscription(subscription: MetricsClientSubscription, serverIds: string[], intervalMs: MetricsRefreshRate): void {
@@ -219,7 +221,7 @@ export class MetricsStreamHub {
       return state.inFlight;
     }
 
-    state.inFlight = this.collectServerNow(serverId)
+    state.inFlight = this.collectServerNow(serverId, force)
       .then((metrics) => {
         state.lastMetrics = metrics;
         state.lastCollectedAt = Date.now();
@@ -236,10 +238,14 @@ export class MetricsStreamHub {
     return state.inFlight;
   }
 
-  private async collectServerNow(serverId: string): Promise<SystemMetrics> {
+  private async collectServerNow(serverId: string, force: boolean): Promise<SystemMetrics> {
     try {
       const target = await resolveSshTarget(this.store, this.keyStore, serverId);
-      return await collectTelemetry(target);
+      if (force && !target.isLocal) {
+        this.sshPool.drop(target.connectConfig);
+      }
+
+      return await collectTelemetry(target, { sshPool: this.sshPool });
     } catch (error) {
       return buildOfflineMetrics(error instanceof Error ? normalizeSshError(error.message) : 'SSH Connection Timeout or Refused');
     }

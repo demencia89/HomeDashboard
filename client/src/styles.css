@@ -24,6 +24,7 @@
   --compact-temp-color: var(--red);
   --compact-disk-color: var(--amber);
   --compact-network-color: var(--purple);
+  --compact-battery-color: var(--green);
   --purple: #a78bfa;
   --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
   --card-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
@@ -529,8 +530,8 @@ button:disabled {
 }
 
 .server-row {
-  grid-template-columns: 10px 34px minmax(0, 1fr);
-  padding-right: 45px;
+  grid-template-columns: 10px 34px minmax(0, 1fr) auto;
+  padding-right: 9px;
 }
 
 .fleet-row {
@@ -647,12 +648,70 @@ button:disabled {
   border-radius: 999px;
 }
 
-.server-row .server-auth {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+.server-row-badges {
+  position: relative;
   z-index: 1;
-  max-width: 34px;
+  display: inline-flex;
+  align-self: start;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+}
+
+.server-row .server-auth {
+  flex: 0 0 auto;
+}
+
+.battery-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  height: 22px;
+  padding: 2px 6px;
+  color: color-mix(in srgb, var(--compact-battery-color) 72%, #e6edf3);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--compact-battery-color) 18%, transparent), color-mix(in srgb, var(--compact-battery-color) 8%, transparent)),
+    rgba(12, 18, 24, 0.8);
+  border: 1px solid color-mix(in srgb, var(--compact-battery-color) 34%, transparent);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.battery-pill svg {
+  flex: 0 0 auto;
+  stroke-width: 2.4;
+}
+
+.battery-pill.charging,
+.battery-pill.full {
+  --compact-battery-color: var(--green);
+}
+
+.battery-pill.low {
+  --compact-battery-color: var(--amber);
+}
+
+.battery-pill.critical {
+  --compact-battery-color: var(--red);
+}
+
+.server-row .sidebar-battery-pill {
+  flex: 0 0 auto;
+  max-width: 54px;
+  height: 19px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+.fleet-battery-pill {
+  flex: 0 0 auto;
 }
 
 .workspace {
@@ -756,6 +815,23 @@ button:disabled {
   min-height: 24px;
   padding: 2px 4px;
   border-radius: 5px;
+}
+
+.server-topbar-metric-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.server-topbar-metric-row .compact-metric {
+  min-width: 0;
+}
+
+.server-topbar-battery-pill {
+  height: 21px;
+  padding: 2px 6px;
 }
 
 .server-topbar-metrics .compact-metric + .compact-metric {
@@ -1232,6 +1308,21 @@ button:disabled {
 .refresh-controls .refresh-command {
   flex: 0 0 auto;
   min-width: max-content;
+}
+
+.refresh-controls .offline-retry-command {
+  color: #ffd7dc;
+  background:
+    linear-gradient(180deg, rgba(255, 111, 125, 0.14), rgba(255, 111, 125, 0.07)),
+    #1d1519;
+  border-color: rgba(255, 111, 125, 0.42);
+}
+
+.refresh-controls .offline-retry-command:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 111, 125, 0.2), rgba(255, 111, 125, 0.1)),
+    #25181d;
+  border-color: rgba(255, 111, 125, 0.62);
 }
 
 .refresh-controls .refresh-picker {
@@ -2682,7 +2773,7 @@ button:disabled {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
@@ -2745,6 +2836,22 @@ button:disabled {
 
 .metric-tile.amber {
   --metric-color: var(--amber);
+}
+
+.metric-tile.battery {
+  --metric-color: var(--green);
+}
+
+.metric-tile.battery.charging {
+  --metric-color: var(--teal);
+}
+
+.metric-tile.battery.low {
+  --metric-color: var(--amber);
+}
+
+.metric-tile.battery.critical {
+  --metric-color: var(--red);
 }
 
 .fleet-card-gauges .metric-tile {

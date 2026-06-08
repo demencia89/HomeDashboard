@@ -9,6 +9,7 @@ import { buildWebSocketUrl } from '../lib/websocket';
 import { RefreshRateSelect } from './RefreshRateSelect';
 import { MetricTile } from './MetricTile';
 import { ServerIconBadge } from './ServerIcon';
+import { BatteryPill } from './BatteryIndicator';
 
 type XTerm = import('@xterm/xterm').Terminal;
 type FitAddon = import('@xterm/addon-fit').FitAddon;
@@ -332,6 +333,7 @@ function FleetCard({
   const diskIo = onlineMetrics?.diskIo;
   const network = onlineMetrics?.network;
   const displayedTemperature = onlineMetrics ? selectedTemperature ?? onlineMetrics.temperature : undefined;
+  const battery = onlineMetrics?.battery;
 
   return (
     <article
@@ -368,6 +370,7 @@ function FleetCard({
             <Clock size={13} />
             <span>{formatUptime(onlineMetrics?.uptimeSeconds)}</span>
           </span>
+          <BatteryPill battery={battery} className="fleet-battery-pill" />
           <span className="server-auth">{server.authMethod === 'privateKey' ? 'key' : 'pwd'}</span>
         </span>
       </div>

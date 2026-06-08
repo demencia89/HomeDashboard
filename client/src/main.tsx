@@ -46,6 +46,7 @@ import { buildWebSocketUrl } from './lib/websocket';
 import { registerServiceWorker } from './lib/pwa';
 import { AllContainersPanel, ContainersPanel } from './components/ContainersPanel';
 import { FilesPanel } from './components/FilesPanel';
+import { BatteryPill } from './components/BatteryIndicator';
 import {
   CompactMetric,
   DiskRatePair,
@@ -74,6 +75,7 @@ function App() {
   const [servers, setServers] = useState<ServerProfile[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [metricsByServer, setMetricsByServer] = useState<Record<string, SystemMetrics>>(() => readSessionRecord<SystemMetrics>(METRICS_SESSION_KEY));
+  const [refreshingMetricsByServer, setRefreshingMetricsByServer] = useState<Record<string, boolean>>({});
   const [serverViewByServer, setServerViewByServer] = useState<Record<string, ActiveView>>(() => readSessionServerViews());
   const [form, setForm] = useState<ServerFormState>(emptyForm);
   const [editing, setEditing] = useState(false);
@@ -133,9 +135,22 @@ function App() {
   }, []);
 
   const loadMetrics = useCallback(async (serverId: string) => {
-    const response = await fetch(`/api/servers/${serverId}/metrics?refresh=true`);
-    const body = (await response.json()) as SystemMetrics;
-    setMetricsByServer((current) => ({ ...current, [serverId]: mergeMetricsSnapshot(current[serverId], body) }));
+    setRefreshingMetricsByServer((current) => ({ ...current, [serverId]: true }));
+
+    try {
+      const response = await fetch(`/api/servers/${serverId}/metrics?refresh=true`);
+      const body = (await response.json()) as SystemMetrics & { message?: string };
+
+      if (!response.ok) {
+        throw new Error(body.message ?? 'Unable to load metrics.');
+      }
+
+      setMetricsByServer((current) => ({ ...current, [serverId]: mergeMetricsSnapshot(current[serverId], body) }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to load metrics.');
+    } finally {
+      setRefreshingMetricsByServer((current) => removeRecordKey(current, serverId));
+    }
   }, []);
 
   const loadMetricsForServers = useCallback(async (serverIds: string[]) => {
@@ -569,7 +584,8 @@ function App() {
         </div>
         <nav className="server-list">
           {orderedServers.map((server) => {
-            const serverOnlineState = metricsByServer[server.id]?.online === true ? 'online' : metricsByServer[server.id]?.online === false ? 'offline' : 'unknown';
+            const serverMetrics = metricsByServer[server.id];
+            const serverOnlineState = serverMetrics?.online === true ? 'online' : serverMetrics?.online === false ? 'offline' : 'unknown';
 
             return (
               <button
@@ -584,7 +600,10 @@ function App() {
                   <strong>{server.alias}</strong>
                   <small>{server.username}@{server.host}:{server.port}</small>
                 </span>
-                <span className="server-auth">{server.authMethod === 'privateKey' ? 'key' : 'pwd'}</span>
+                <span className="server-row-badges">
+                  <BatteryPill battery={serverMetrics?.battery} className="sidebar-battery-pill" />
+                  <span className="server-auth">{server.authMethod === 'privateKey' ? 'key' : 'pwd'}</span>
+                </span>
               </button>
             );
           })}
@@ -613,6 +632,7 @@ function App() {
           preferredTemperatureByServer={preferences.defaultTemperatureReadingByServer}
           onPreferredTemperatureChange={(value) => setPreferenceField('defaultTemperatureReadingByServer', value)}
           onRefreshMetrics={() => void loadMetrics(selectedServer.id)}
+          metricsRefreshing={Boolean(refreshingMetricsByServer[selectedServer.id])}
           onBack={showFleet}
           onEdit={startEdit}
           onDelete={() => void deleteServer()}
@@ -956,6 +976,7 @@ function SelectedServerHeader({
   onRefreshRateChange,
   onPreferredTemperatureChange,
   onRefreshMetrics,
+  metricsRefreshing,
   onBack,
   onEdit,
   onDelete,
@@ -969,6 +990,7 @@ function SelectedServerHeader({
   onRefreshRateChange: (value: RefreshRate) => void;
   onPreferredTemperatureChange: (value: Record<string, string>) => void;
   onRefreshMetrics: () => void;
+  metricsRefreshing: boolean;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -980,6 +1002,8 @@ function SelectedServerHeader({
   const selectedTemperatureKey = preferredTemperatureByServer[server.id];
   const displayedTemperature = temperatureOverride ?? metrics?.temperature;
   const onlineState = metrics?.online === true ? 'online' : metrics?.online === false ? 'offline' : 'unknown';
+  const metricRefreshLabel = onlineState === 'offline' ? 'Retry' : 'Metrics';
+  const metricRefreshTitle = onlineState === 'offline' ? 'Retry metrics using a fresh SSH connection' : 'Refresh metrics';
 
   useEffect(() => {
     if (!selectedTemperatureKey) {
@@ -1047,14 +1071,17 @@ function SelectedServerHeader({
           </div>
         </div>
         <div className="server-topbar-metrics" aria-label="Active server quick metrics">
-          <CompactMetric
-            icon={<Thermometer size={15} />}
-            iconClassName="temp"
-            value={formatTemperature(displayedTemperature?.celsius)}
-            actionIcon={<ExternalLink size={11} />}
-            title={displayedTemperature?.label ? `Show temperature sensors. Current: ${displayedTemperature.label}` : 'Show temperature sensors'}
-            onClick={() => setTemperatureDialogOpen(true)}
-          />
+          <div className="server-topbar-metric-row">
+            <CompactMetric
+              icon={<Thermometer size={15} />}
+              iconClassName="temp"
+              value={formatTemperature(displayedTemperature?.celsius)}
+              actionIcon={<ExternalLink size={11} />}
+              title={displayedTemperature?.label ? `Show temperature sensors. Current: ${displayedTemperature.label}` : 'Show temperature sensors'}
+              onClick={() => setTemperatureDialogOpen(true)}
+            />
+            <BatteryPill battery={metrics?.battery} className="server-topbar-battery-pill" />
+          </div>
           <CompactMetric
             icon={<HardDrive size={15} />}
             iconClassName="disk"
@@ -1073,8 +1100,13 @@ function SelectedServerHeader({
         <div className="server-topbar-controls">
           {showMetricControls && (
             <div className="refresh-controls">
-              <button className="command refresh-command" onClick={onRefreshMetrics}>
-                <RefreshCw size={16} aria-hidden="true" /> Metrics
+              <button
+                className={`command refresh-command ${onlineState === 'offline' ? 'offline-retry-command' : ''}`}
+                onClick={onRefreshMetrics}
+                disabled={metricsRefreshing}
+                title={metricRefreshTitle}
+              >
+                <RefreshCw size={16} aria-hidden="true" className={metricsRefreshing ? 'spin-icon' : undefined} /> {metricRefreshLabel}
               </button>
               <RefreshRateSelect value={refreshRate} onChange={onRefreshRateChange} />
             </div>

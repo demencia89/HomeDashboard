@@ -5,7 +5,20 @@ import type { KeyStore } from '../storage/key-store.js';
 import { DecryptionError, decryptPassword } from '../utils/crypto.js';
 
 export const SSH_READY_TIMEOUT_MS = 5_000;
+const DEFAULT_POOLED_SSH_IDLE_TIMEOUT_MS = 60_000;
 const sshClientQueues = new Map<string, Promise<void>>();
+
+interface PooledSshClientState {
+  client?: Client;
+  connecting?: Promise<Client>;
+  idleTimer?: NodeJS.Timeout;
+  queue: Promise<void>;
+  activeActions: number;
+}
+
+export interface SshConnectionPoolOptions {
+  idleTimeoutMs?: number;
+}
 
 export class ServerNotFoundError extends Error {
   constructor(id: string) {
@@ -34,6 +47,7 @@ export interface ResolvedSshTarget {
 export interface SshExecOptions {
   timeoutMs?: number;
   label?: string;
+  input?: string;
 }
 
 export interface SshExecResult {
@@ -180,6 +194,211 @@ export async function withSshClient<T>(connectConfig: ConnectConfig, action: (cl
   });
 }
 
+export class SshConnectionPool {
+  private readonly idleTimeoutMs: number;
+  private readonly clients = new Map<string, PooledSshClientState>();
+
+  constructor(options: SshConnectionPoolOptions = {}) {
+    this.idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_POOLED_SSH_IDLE_TIMEOUT_MS;
+  }
+
+  async withClient<T>(connectConfig: ConnectConfig, action: (client: Client) => Promise<T>): Promise<T> {
+    const key = sshQueueKey(connectConfig);
+    const state = this.getState(key);
+    const previous = state.queue;
+    let releaseCurrent: () => void = () => undefined;
+    const current = new Promise<void>((resolve) => {
+      releaseCurrent = resolve;
+    });
+
+    state.activeActions += 1;
+    this.clearIdleTimer(state);
+    state.queue = previous.catch(() => undefined).then(() => current);
+
+    await previous.catch(() => undefined);
+
+    try {
+      let lastError: unknown;
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const client = await this.getClient(key, state, connectConfig);
+
+        try {
+          return await action(client);
+        } catch (error) {
+          lastError = error;
+
+          if (!isRetryableSshError(error)) {
+            throw error;
+          }
+
+          this.dropClient(key, state, client);
+
+          if (attempt === 1) {
+            throw error;
+          }
+
+          await delay(200);
+        }
+      }
+
+      throw lastError instanceof Error ? lastError : new Error('SSH Connection Timeout or Refused');
+    } finally {
+      releaseCurrent();
+      state.activeActions = Math.max(0, state.activeActions - 1);
+      this.scheduleIdleClose(key, state);
+    }
+  }
+
+  drop(connectConfig: ConnectConfig): void {
+    const key = sshQueueKey(connectConfig);
+    const state = this.clients.get(key);
+
+    if (state) {
+      this.closeState(key, state);
+    }
+  }
+
+  closeAll(): void {
+    for (const [key, state] of this.clients) {
+      this.closeState(key, state);
+    }
+
+    this.clients.clear();
+  }
+
+  private getState(key: string): PooledSshClientState {
+    const existing = this.clients.get(key);
+
+    if (existing) {
+      return existing;
+    }
+
+    const state: PooledSshClientState = {
+      queue: Promise.resolve(),
+      activeActions: 0,
+    };
+    this.clients.set(key, state);
+    return state;
+  }
+
+  private async getClient(key: string, state: PooledSshClientState, connectConfig: ConnectConfig): Promise<Client> {
+    if (state.client) {
+      return state.client;
+    }
+
+    if (!state.connecting) {
+      state.connecting = connectSshWithRetry(connectConfig)
+        .then((client) => {
+          if (this.clients.get(key) !== state) {
+            closeSshClient(client);
+            throw new Error('SSH connection pool closed.');
+          }
+
+          state.client = client;
+          this.watchClient(key, state, client);
+          return client;
+        })
+        .finally(() => {
+          state.connecting = undefined;
+        });
+    }
+
+    return state.connecting;
+  }
+
+  private watchClient(key: string, state: PooledSshClientState, client: Client): void {
+    let removed = false;
+    const remove = () => {
+      if (removed) {
+        return;
+      }
+
+      removed = true;
+      client.removeListener('close', remove);
+      client.removeListener('end', remove);
+      client.removeListener('error', remove);
+
+      if (state.client === client) {
+        state.client = undefined;
+      }
+
+      this.clearIdleTimer(state);
+
+      if (state.activeActions === 0 && !state.connecting && this.clients.get(key) === state) {
+        this.clients.delete(key);
+      }
+    };
+
+    client.once('close', remove);
+    client.once('end', remove);
+    client.once('error', remove);
+  }
+
+  private dropClient(key: string, state: PooledSshClientState, client: Client): void {
+    if (state.client === client) {
+      state.client = undefined;
+    }
+
+    closeSshClient(client);
+
+    if (!state.connecting && state.activeActions === 0 && this.clients.get(key) === state) {
+      this.clients.delete(key);
+    }
+  }
+
+  private scheduleIdleClose(key: string, state: PooledSshClientState): void {
+    if (this.clients.get(key) !== state || state.activeActions > 0) {
+      return;
+    }
+
+    this.clearIdleTimer(state);
+
+    if (!state.client && !state.connecting) {
+      this.clients.delete(key);
+      return;
+    }
+
+    if (this.idleTimeoutMs <= 0) {
+      this.closeState(key, state);
+      return;
+    }
+
+    state.idleTimer = setTimeout(() => {
+      if (state.activeActions > 0 || this.clients.get(key) !== state) {
+        return;
+      }
+
+      this.closeState(key, state);
+    }, this.idleTimeoutMs);
+    state.idleTimer.unref?.();
+  }
+
+  private closeState(key: string, state: PooledSshClientState): void {
+    this.clearIdleTimer(state);
+
+    const client = state.client;
+    state.client = undefined;
+
+    if (client) {
+      closeSshClient(client);
+    }
+
+    if (!state.connecting && this.clients.get(key) === state) {
+      this.clients.delete(key);
+    }
+  }
+
+  private clearIdleTimer(state: PooledSshClientState): void {
+    if (!state.idleTimer) {
+      return;
+    }
+
+    clearTimeout(state.idleTimer);
+    state.idleTimer = undefined;
+  }
+}
+
 async function connectSshWithRetry(connectConfig: ConnectConfig): Promise<Client> {
   let lastError: unknown;
 
@@ -189,7 +408,7 @@ async function connectSshWithRetry(connectConfig: ConnectConfig): Promise<Client
     } catch (error) {
       lastError = error;
 
-      if (!isRetryableSshConnectError(error) || attempt === 1) {
+      if (!isRetryableSshError(error) || attempt === 1) {
         throw error;
       }
 
@@ -231,7 +450,7 @@ function sshQueueKey(connectConfig: ConnectConfig): string {
   ].join(':');
 }
 
-function isRetryableSshConnectError(error: unknown): boolean {
+function isRetryableSshError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
   }
@@ -240,6 +459,9 @@ function isRetryableSshConnectError(error: unknown): boolean {
   return message.includes('timeout')
     || message.includes('refused')
     || message.includes('connection lost')
+    || message.includes('not connected')
+    || message.includes('no response')
+    || message.includes('unable to exec')
     || message.includes('reset')
     || message.includes('closed');
 }
@@ -348,6 +570,14 @@ export function execSshCommand(client: Client, command: string, options: SshExec
         stream.stderr.on('data', onStderr);
         stream.once('error', onStreamError);
         stream.once('close', onClose);
+
+        if (options.input !== undefined) {
+          try {
+            stream.end(options.input);
+          } catch (writeError) {
+            settle(writeError instanceof Error ? writeError : new Error(`${label} input failed.`), true);
+          }
+        }
       });
     } catch (error) {
       settle(error instanceof Error ? error : new Error(`${label} failed.`), true);

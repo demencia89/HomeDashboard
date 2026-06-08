@@ -46,14 +46,16 @@ HomeDashboard manages Linux hosts over SSH, so after logging in, add a server pr
 ## Features
 
 - Fastify + TypeScript backend with a Vite/React frontend.
-- SSH-based telemetry collection for CPU, memory, disk, processes, and Docker containers.
-- Fleet overview with draggable server ordering, Bars/Gauges metric modes, compact temperature, disk I/O, network indicators, theme-aware gauges, and optional shared wallpaper.
+- SSH-based telemetry collection for CPU, memory, disk, battery, temperature, disk/network I/O, processes, and Docker containers.
+- Pooled SSH telemetry with stale-session retry and stdin-delivered collector scripts for hosts that reject very large inline commands.
+- Fleet overview with draggable server ordering, Bars/Gauges metric modes, compact battery, temperature, disk I/O, network indicators, theme-aware gauges, and optional shared wallpaper.
 - File browsing, upload/download, editing, mkdir, rename, and delete over SFTP.
 - Web terminal sessions using `ssh2`, with the terminal surface resizing to the available browser space.
 - Docker container list and app-icon views with draggable ordering, logs, custom app icons, guarded start/stop/restart actions, and optional Compose file editing for Compose-managed containers.
 - All Servers and All Containers wallpaper support, stored on the server in `/config` so the same wallpaper appears across devices.
 - App version display and optional update notifications backed by a configurable release endpoint.
 - Temperature sensor and NetHogs network popups from the fleet cards.
+- Offline server retry controls that force a fresh SSH metrics collection without returning to high-frequency SSH login churn.
 - Multiple visual themes with configurable automatic refresh rate, including a neon-styled Neo theme and a light Minimal theme.
 - VNC status, setup, service control, embedded viewer, fullscreen controls, and pop-out viewing.
 - Persistent configuration through a mounted `/config` volume.
@@ -184,9 +186,17 @@ Each server profile stores the SSH target, authentication method, optional icon,
 
 HomeDashboard reads common Linux temperature sources automatically, including `hwmon`, thermal zones, power supply temperatures, and Raspberry Pi `vcgencmd` when available.
 
+## Telemetry And Battery
+
+HomeDashboard collects telemetry through SSH using one combined shell collector per refresh. Metrics streams reuse pooled SSH connections to avoid repeated logins, while stale or closed pooled sessions are dropped and retried once on a fresh connection before the server is marked offline. Manual metrics refreshes also clear the pooled connection for that server first.
+
+The collector is sent to remote hosts over SSH stdin with `sh -s`. This keeps the remote command short, which helps embedded or appliance-style SSH servers that reject very large inline command strings.
+
+Battery reporting is generic. HomeDashboard checks Linux power-supply sysfs data, `termux-battery-status` or compatible scripts, Android `cmd battery`/`dumpsys battery`, `upower`, and `acpi`. Devices that expose one of those interfaces can show battery percentage and status in the sidebar server row, fleet card, and selected-server overview. Android or Terminal environments should adapt to one of those generic interfaces rather than requiring a HomeDashboard-specific collector patch.
+
 ## Fleet Overview
 
-The fleet overview shows all configured servers as draggable cards. Bars mode uses compact progress cards with subtle animated glints for CPU, memory, and disk usage; Gauges mode uses larger dial-style metric tiles with static filled arcs. The compact indicators below each card show selected temperature, disk I/O, and network throughput.
+The fleet overview shows all configured servers as draggable cards. Bars mode uses compact progress cards with subtle animated glints for CPU, memory, and disk usage; Gauges mode uses larger dial-style metric tiles with static filled arcs. The compact indicators below each card show battery level when available, selected temperature, disk I/O, and network throughput.
 
 Temperature and network indicators are interactive. Temperature opens a sensor list where the card reading can be changed per server. Network opens a NetHogs terminal view for the selected host when the required command is available through SSH.
 
@@ -208,7 +218,7 @@ Terminal sessions run through SSH-backed WebSockets and resize with the active b
 
 ## Themes And Refresh
 
-The sidebar theme picker changes the app palette across the dashboard, including gauges, status colors, controls, cards, and wallpaper surfaces. Neo uses brighter neon accents and scoped bloom effects; Minimal keeps selected-server and fleet surfaces light. The refresh-rate picker controls automatic telemetry refreshes; set it to Off to rely on manual refresh buttons.
+The sidebar theme picker changes the app palette across the dashboard, including gauges, status colors, controls, cards, and wallpaper surfaces. Neo uses brighter neon accents and scoped bloom effects; Minimal keeps selected-server and fleet surfaces light. The refresh-rate picker controls automatic telemetry refreshes; set it to Off to rely on manual refresh buttons. When a selected server is offline, the header refresh action changes to Retry and forces a fresh SSH metrics attempt.
 
 ## Version And Updates
 

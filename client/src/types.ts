@@ -80,6 +80,7 @@ export interface SystemMetrics {
   uptimeSeconds: number;
   memory: { total: number; used: number; free: number };
   disk: DiskMetric[];
+  battery: BatteryMetric | null;
   temperature: TemperatureMetric | null;
   diskIo: ThroughputMetric;
   network: NetworkMetric;
@@ -92,6 +93,12 @@ export interface SystemMetrics {
 export interface TemperatureMetric {
   label: string;
   celsius: number;
+}
+
+export interface BatteryMetric {
+  label: string;
+  percentage: number;
+  status: string;
 }
 
 export interface TemperatureSnapshot {
