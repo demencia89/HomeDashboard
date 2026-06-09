@@ -37,7 +37,7 @@ const fallbackVersion = typeof packageJson.version === 'string' && packageJson.v
 
 let cachedUpdate: { expiresAt: number; update: AppUpdateInfo } | undefined;
 
-export async function getAppVersionInfo(): Promise<AppVersionInfo> {
+export async function getAppVersionInfo(forceUpdateCheck = false): Promise<AppVersionInfo> {
   const currentVersion = APP_VERSION || fallbackVersion;
 
   return {
@@ -45,11 +45,11 @@ export async function getAppVersionInfo(): Promise<AppVersionInfo> {
     currentVersion,
     revision: APP_REVISION || undefined,
     buildDate: APP_BUILD_DATE || undefined,
-    update: await getUpdateInfo(currentVersion),
+    update: await getUpdateInfo(currentVersion, forceUpdateCheck),
   };
 }
 
-async function getUpdateInfo(currentVersion: string): Promise<AppUpdateInfo> {
+async function getUpdateInfo(currentVersion: string, forceUpdateCheck: boolean): Promise<AppUpdateInfo> {
   const releaseUrl = APP_UPDATE_URL;
 
   if (APP_UPDATE_CHECK_DISABLED || !APP_UPDATE_CHECK_URL) {
@@ -62,7 +62,7 @@ async function getUpdateInfo(currentVersion: string): Promise<AppUpdateInfo> {
 
   const now = Date.now();
 
-  if (cachedUpdate && cachedUpdate.expiresAt > now) {
+  if (!forceUpdateCheck && cachedUpdate && cachedUpdate.expiresAt > now) {
     return cachedUpdate.update;
   }
 

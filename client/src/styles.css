@@ -1288,6 +1288,33 @@ button:disabled {
   white-space: nowrap;
 }
 
+.app-version-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: #b7c4d2;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 6px;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.app-version-check:hover:not(:disabled),
+.app-version-check:focus-visible {
+  color: var(--text);
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.28);
+  transform: translateY(-1px);
+}
+
+.app-version-check svg {
+  flex: 0 0 auto;
+}
+
 .app-version code {
   padding: 2px 5px;
   color: #b7c4d2;
@@ -2836,22 +2863,6 @@ button:disabled {
 
 .metric-tile.amber {
   --metric-color: var(--amber);
-}
-
-.metric-tile.battery {
-  --metric-color: var(--green);
-}
-
-.metric-tile.battery.charging {
-  --metric-color: var(--teal);
-}
-
-.metric-tile.battery.low {
-  --metric-color: var(--amber);
-}
-
-.metric-tile.battery.critical {
-  --metric-color: var(--red);
 }
 
 .fleet-card-gauges .metric-tile {

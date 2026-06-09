@@ -1,11 +1,26 @@
 # Changelog
 
+## 1.2.3 - 2026-06-09
+
+### Added
+
+- WebSocket heartbeat cleanup, scoped WebSocket connection limits, and a debug endpoint for active WebSocket counts.
+
+### Changed
+
+- Metrics streams pause while the page is hidden or offline, reconnect with backoff, and refresh once when the page resumes.
+- Pooled SSH metrics connections now rotate after a bounded lifetime while still avoiding repeated login churn.
+
+### Fixed
+
+- Stale metrics WebSockets can no longer consume all terminal connection capacity after a browser or network sleep.
+
 ## 0.1.2 - 2026-06-08
 
 ### Added
 
 - Battery telemetry and UI indicators for devices that expose generic Linux, Termux-compatible, Android shell, UPower, or ACPI battery data.
-- Battery display in sidebar server rows, fleet cards, and selected-server overview metrics.
+- Battery display in sidebar server rows, selected-server headers, and fleet cards.
 - Offline Retry action in the selected-server header for forced fresh metrics collection.
 
 ### Changed

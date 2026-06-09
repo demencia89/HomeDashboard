@@ -37,8 +37,8 @@ export async function controlContainer(serverId: string, containerId: string, ac
   }
 }
 
-export async function fetchAppVersion(): Promise<AppVersionInfo> {
-  const response = await fetch('/api/app/version');
+export async function fetchAppVersion(options: { refresh?: boolean } = {}): Promise<AppVersionInfo> {
+  const response = await fetch(`/api/app/version${options.refresh ? '?refresh=true' : ''}`);
   const body = (await response.json().catch(() => undefined)) as AppVersionInfo | { message?: string } | undefined;
 
   if (!response.ok) {

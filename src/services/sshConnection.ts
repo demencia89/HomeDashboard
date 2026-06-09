@@ -6,6 +6,7 @@ import { DecryptionError, decryptPassword } from '../utils/crypto.js';
 
 export const SSH_READY_TIMEOUT_MS = 5_000;
 const DEFAULT_POOLED_SSH_IDLE_TIMEOUT_MS = 60_000;
+const DEFAULT_POOLED_SSH_MAX_LIFETIME_MS = 30 * 60_000;
 const sshClientQueues = new Map<string, Promise<void>>();
 
 interface PooledSshClientState {
@@ -14,10 +15,12 @@ interface PooledSshClientState {
   idleTimer?: NodeJS.Timeout;
   queue: Promise<void>;
   activeActions: number;
+  connectedAt?: number;
 }
 
 export interface SshConnectionPoolOptions {
   idleTimeoutMs?: number;
+  maxLifetimeMs?: number;
 }
 
 export class ServerNotFoundError extends Error {
@@ -196,10 +199,12 @@ export async function withSshClient<T>(connectConfig: ConnectConfig, action: (cl
 
 export class SshConnectionPool {
   private readonly idleTimeoutMs: number;
+  private readonly maxLifetimeMs: number;
   private readonly clients = new Map<string, PooledSshClientState>();
 
   constructor(options: SshConnectionPoolOptions = {}) {
     this.idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_POOLED_SSH_IDLE_TIMEOUT_MS;
+    this.maxLifetimeMs = options.maxLifetimeMs ?? DEFAULT_POOLED_SSH_MAX_LIFETIME_MS;
   }
 
   async withClient<T>(connectConfig: ConnectConfig, action: (client: Client) => Promise<T>): Promise<T> {
@@ -284,7 +289,14 @@ export class SshConnectionPool {
 
   private async getClient(key: string, state: PooledSshClientState, connectConfig: ConnectConfig): Promise<Client> {
     if (state.client) {
-      return state.client;
+      if (!this.isClientExpired(state)) {
+        return state.client;
+      }
+
+      const expiredClient = state.client;
+      state.client = undefined;
+      state.connectedAt = undefined;
+      closeSshClient(expiredClient);
     }
 
     if (!state.connecting) {
@@ -296,6 +308,7 @@ export class SshConnectionPool {
           }
 
           state.client = client;
+          state.connectedAt = Date.now();
           this.watchClient(key, state, client);
           return client;
         })
@@ -321,6 +334,7 @@ export class SshConnectionPool {
 
       if (state.client === client) {
         state.client = undefined;
+        state.connectedAt = undefined;
       }
 
       this.clearIdleTimer(state);
@@ -338,6 +352,7 @@ export class SshConnectionPool {
   private dropClient(key: string, state: PooledSshClientState, client: Client): void {
     if (state.client === client) {
       state.client = undefined;
+      state.connectedAt = undefined;
     }
 
     closeSshClient(client);
@@ -379,6 +394,7 @@ export class SshConnectionPool {
 
     const client = state.client;
     state.client = undefined;
+    state.connectedAt = undefined;
 
     if (client) {
       closeSshClient(client);
@@ -396,6 +412,10 @@ export class SshConnectionPool {
 
     clearTimeout(state.idleTimer);
     state.idleTimer = undefined;
+  }
+
+  private isClientExpired(state: PooledSshClientState): boolean {
+    return this.maxLifetimeMs > 0 && state.connectedAt !== undefined && Date.now() - state.connectedAt >= this.maxLifetimeMs;
   }
 }
 

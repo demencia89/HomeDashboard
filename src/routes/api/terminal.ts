@@ -46,7 +46,7 @@ fi
 
 export const terminalRoutes: FastifyPluginAsync<TerminalRoutesOptions> = async (fastify, { store, keyStore, webSocketToken }) => {
   fastify.get<{ Params: { id: string } }>('/api/servers/:id/shell', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'Terminal', webSocketToken)) {
+    if (!acceptWebSocketConnection(request, socket, 'Terminal', webSocketToken, 'terminal')) {
       return;
     }
 
@@ -54,7 +54,7 @@ export const terminalRoutes: FastifyPluginAsync<TerminalRoutesOptions> = async (
   });
 
   fastify.get<{ Params: { id: string } }>('/api/servers/:id/nethogs-shell', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'NetHogs terminal', webSocketToken)) {
+    if (!acceptWebSocketConnection(request, socket, 'NetHogs terminal', webSocketToken, 'nethogs')) {
       return;
     }
 

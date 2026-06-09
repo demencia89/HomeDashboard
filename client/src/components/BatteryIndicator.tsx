@@ -1,11 +1,11 @@
 import { Battery, BatteryCharging } from 'lucide-react';
 import type { BatteryMetric } from '../types';
 
-export function hasBatteryMetric(battery: BatteryMetric | null | undefined): battery is BatteryMetric {
+function hasBatteryMetric(battery: BatteryMetric | null | undefined): battery is BatteryMetric {
   return typeof battery?.percentage === 'number' && Number.isFinite(battery.percentage);
 }
 
-export function formatBatteryPercentage(battery: BatteryMetric | null | undefined): string {
+function formatBatteryPercentage(battery: BatteryMetric | null | undefined): string {
   if (!hasBatteryMetric(battery)) {
     return '--';
   }
@@ -13,15 +13,7 @@ export function formatBatteryPercentage(battery: BatteryMetric | null | undefine
   return `${Math.round(clampBatteryPercentage(battery.percentage))}%`;
 }
 
-export function batteryDetailText(battery: BatteryMetric | null | undefined): string | undefined {
-  if (!hasBatteryMetric(battery)) {
-    return undefined;
-  }
-
-  return `${battery.label} - ${formatBatteryStatus(battery.status)}`;
-}
-
-export function batteryStateClass(battery: BatteryMetric | null | undefined): 'charging' | 'full' | 'low' | 'critical' | 'normal' {
+function batteryStateClass(battery: BatteryMetric | null | undefined): 'charging' | 'full' | 'low' | 'critical' | 'normal' {
   if (!hasBatteryMetric(battery)) {
     return 'normal';
   }

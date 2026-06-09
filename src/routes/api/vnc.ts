@@ -146,7 +146,7 @@ export const vncRoutes: FastifyPluginAsync<VncRoutesOptions> = async (fastify, {
   });
 
   fastify.get<{ Params: { id: string }; Querystring: VncQuery }>('/api/servers/:id/vnc/socket', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'VNC bridge', webSocketToken)) {
+    if (!acceptWebSocketConnection(request, socket, 'VNC bridge', webSocketToken, 'vnc')) {
       return;
     }
 

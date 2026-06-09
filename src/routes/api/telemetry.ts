@@ -38,7 +38,7 @@ export const telemetryRoutes: FastifyPluginAsync<TelemetryRoutesOptions> = async
   });
 
   fastify.get('/api/metrics/stream', { websocket: true }, (socket, request) => {
-    if (!acceptWebSocketConnection(request, socket, 'Metrics stream', webSocketToken)) {
+    if (!acceptWebSocketConnection(request, socket, 'Metrics stream', webSocketToken, 'metrics')) {
       return;
     }
 

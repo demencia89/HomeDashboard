@@ -171,7 +171,9 @@ Runtime configuration is provided by environment variables:
 - `AUTH_FAILURE_RATE_LIMIT_MAX`, `AUTH_FAILURE_RATE_LIMIT_WINDOW_MS`: failed Basic auth attempts per client before `429`, defaults to `20` per `300000` ms.
 - `EXPENSIVE_HTTP_RATE_LIMIT_MAX`, `EXPENSIVE_HTTP_RATE_LIMIT_WINDOW_MS`: SSH-backed HTTP API requests per client, defaults to `180` per `60000` ms.
 - `WS_CONNECTION_RATE_LIMIT_MAX`, `WS_CONNECTION_RATE_LIMIT_WINDOW_MS`: WebSocket connection attempts per client, defaults to `60` per `60000` ms.
-- `WS_MAX_CONNECTIONS_PER_IP`: concurrent WebSocket connections per client, defaults to `12`.
+- `WS_HEARTBEAT_INTERVAL_MS`, `WS_HEARTBEAT_TIMEOUT_MS`, `WS_MAX_CONNECTION_AGE_MS`: WebSocket liveness and maximum connection lifetime controls, defaults to `30000`, `75000`, and `43200000` ms.
+- `WS_MAX_CONNECTIONS_PER_IP`: total concurrent WebSocket connections per client, defaults to `16`.
+- `WS_MAX_METRICS_CONNECTIONS_PER_IP`, `WS_MAX_TERMINAL_CONNECTIONS_PER_IP`, `WS_MAX_NETHOGS_CONNECTIONS_PER_IP`, `WS_MAX_VNC_CONNECTIONS_PER_IP`: scoped concurrent WebSocket limits per client, defaults to `4`, `4`, `2`, and `3`.
 - `WS_MESSAGE_RATE_LIMIT_MAX`, `WS_MESSAGE_RATE_LIMIT_WINDOW_MS`: client WebSocket messages per socket, defaults to `2400` per `60000` ms.
 - `VNC_ALLOWED_PORTS`: comma-separated VNC bridge ports or ranges, defaults to `5900-5999`.
 - `VNC_ALLOWED_HOSTS`: optional comma-separated extra hosts the VNC bridge may connect to. By default the bridge only allows loopback, the selected server profile host, and hosts discovered by VNC status for that server.
@@ -188,11 +190,13 @@ HomeDashboard reads common Linux temperature sources automatically, including `h
 
 ## Telemetry And Battery
 
-HomeDashboard collects telemetry through SSH using one combined shell collector per refresh. Metrics streams reuse pooled SSH connections to avoid repeated logins, while stale or closed pooled sessions are dropped and retried once on a fresh connection before the server is marked offline. Manual metrics refreshes also clear the pooled connection for that server first.
+HomeDashboard collects telemetry through SSH using one combined shell collector per refresh. Metrics streams reuse pooled SSH connections to avoid repeated logins, while stale or closed pooled sessions are dropped and retried once on a fresh connection before the server is marked offline. Pooled SSH clients also rotate after a bounded lifetime so long-running dashboards keep the low-login behavior without keeping one SSH client forever. Manual metrics refreshes clear the pooled connection for that server first.
+
+Metrics, terminal, NetHogs, and VNC WebSockets have scoped connection limits plus server-side heartbeat cleanup. A stale metrics stream can be terminated without consuming terminal or VNC capacity. The metrics client pauses streaming while the page is hidden or offline, then performs a fresh metrics refresh when it resumes.
 
 The collector is sent to remote hosts over SSH stdin with `sh -s`. This keeps the remote command short, which helps embedded or appliance-style SSH servers that reject very large inline command strings.
 
-Battery reporting is generic. HomeDashboard checks Linux power-supply sysfs data, `termux-battery-status` or compatible scripts, Android `cmd battery`/`dumpsys battery`, `upower`, and `acpi`. Devices that expose one of those interfaces can show battery percentage and status in the sidebar server row, fleet card, and selected-server overview. Android or Terminal environments should adapt to one of those generic interfaces rather than requiring a HomeDashboard-specific collector patch.
+Battery reporting is generic. HomeDashboard checks Linux power-supply sysfs data, `termux-battery-status` or compatible scripts, Android `cmd battery`/`dumpsys battery`, `upower`, and `acpi`. Devices that expose one of those interfaces can show battery percentage and status in the sidebar server row, selected-server header, and fleet card. Android or Terminal environments should adapt to one of those generic interfaces rather than requiring a HomeDashboard-specific collector patch.
 
 ## Fleet Overview
 
@@ -216,13 +220,15 @@ The all-container app and list views share the same wallpaper surface as the fle
 
 Terminal sessions run through SSH-backed WebSockets and resize with the active browser viewport while keeping safe minimum dimensions. VNC support discovers common VNC services, exposes setup guidance for supported Linux desktops, tunnels through the selected SSH profile, and uses red disconnect controls to distinguish destructive session-ending actions from normal primary actions.
 
+The authenticated `/api/debug/websockets` endpoint reports active WebSocket counts by scope for troubleshooting connection-limit or stale-socket issues.
+
 ## Themes And Refresh
 
 The sidebar theme picker changes the app palette across the dashboard, including gauges, status colors, controls, cards, and wallpaper surfaces. Neo uses brighter neon accents and scoped bloom effects; Minimal keeps selected-server and fleet surfaces light. The refresh-rate picker controls automatic telemetry refreshes; set it to Off to rely on manual refresh buttons. When a selected server is offline, the header refresh action changes to Retry and forces a fresh SSH metrics attempt.
 
 ## Version And Updates
 
-HomeDashboard displays its current version in the sidebar. By default, the Docker Compose configuration points the update checker at the latest GitHub release for this repository. If a newer release is available, the sidebar shows a bottom-sticky update notice that opens the release notes or can be dismissed. Set `APP_UPDATE_CHECK_DISABLED=true` to disable outbound update checks, or override `APP_UPDATE_CHECK_URL` and `APP_UPDATE_URL` for another release channel.
+HomeDashboard displays its current version in the sidebar with a manual check button beside the version number. By default, the Docker Compose configuration points the update checker at the latest GitHub release for this repository. The app checks for updates when the UI loads after authentication, and the manual button forces a fresh check without waiting for the server-side update cache. If a newer release is available, the sidebar shows a bottom-sticky update notice that opens the release notes or can be dismissed. Set `APP_UPDATE_CHECK_DISABLED=true` to disable outbound update checks, or override `APP_UPDATE_CHECK_URL` and `APP_UPDATE_URL` for another release channel.
 
 HomeDashboard does not self-update from inside the app. Updating is an operator action because the app would otherwise need host-level Docker or filesystem control. For source-based installs, update from the host running the project:
 

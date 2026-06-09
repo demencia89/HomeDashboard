@@ -6,7 +6,6 @@ import { findDiskByMount, isUserMountedDisk } from '../lib/disks';
 import { formatFilesystemSize, formatProcessMemory } from '../lib/format';
 import { moveSectionId, normalizeOverviewSectionPreferences, updateServerSectionPreferences } from '../lib/overviewSections';
 import { removeRecordKey } from '../lib/records';
-import { batteryDetailText, batteryStateClass, formatBatteryPercentage, hasBatteryMetric } from './BatteryIndicator';
 import { MetricTile } from './MetricTile';
 import { OverviewSection } from './OverviewSection';
 
@@ -39,7 +38,6 @@ export function Overview({
   const primaryDisk = findDiskByMount(disks, selectedDefaultDiskMount) ?? disks[0];
   const diskPercentage = primaryDisk?.percentage ?? 0;
   const diskDetail = primaryDisk ? `${primaryDisk.mount} ${formatFilesystemSize(primaryDisk.used)} / ${formatFilesystemSize(primaryDisk.total)}` : 'No disk data';
-  const batteryMetric = hasBatteryMetric(metrics?.battery) ? metrics.battery : undefined;
   const visibleDisks = userMountsOnly ? disks.filter((disk) => isAlwaysVisibleDisk(disk.mount, selectedDefaultDiskMount) || isUserMountedDisk(disk)) : disks;
   const normalizedSections = useMemo(() => {
     return normalizeOverviewSectionPreferences(server ? sectionPreferencesByServer[server.id] : undefined);
@@ -224,15 +222,6 @@ export function Overview({
         <MetricTile label="CPU Load" value={`${Math.round(metrics?.cpuUsage ?? 0)}%`} progress={metrics?.cpuUsage ?? 0} accent="teal" />
         <MetricTile label="Memory Used" value={`${memoryPercentage}%`} detail={`${metrics?.memory.used ?? 0} / ${metrics?.memory.total ?? 0} MB`} progress={memoryPercentage} accent="blue" />
         <MetricTile label="Disk Usage" value={`${diskPercentage}%`} detail={diskDetail} progress={diskPercentage} accent="amber" />
-        {batteryMetric && (
-          <MetricTile
-            label="Battery"
-            value={formatBatteryPercentage(batteryMetric)}
-            detail={batteryDetailText(batteryMetric)}
-            progress={batteryMetric.percentage}
-            accent={`battery ${batteryStateClass(batteryMetric)}`}
-          />
-        )}
       </div>
       {hiddenSectionIds.length > 0 && (
         <div className="overview-layout-toolbar">

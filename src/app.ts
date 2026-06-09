@@ -15,7 +15,7 @@ import { keyRoutes } from './routes/keys.js';
 import { preferenceRoutes } from './routes/preferences.js';
 import { serverRoutes } from './routes/servers.js';
 import { registerBasicAuth } from './security/basic-auth.js';
-import { createWebSocketToken, registerExpensiveHttpRateLimit } from './security/rate-limit.js';
+import { createWebSocketToken, getWebSocketConnectionStats, registerExpensiveHttpRateLimit } from './security/rate-limit.js';
 import { deleteWallpaper, getWallpaperImage, getWallpaperInfo, saveWallpaper } from './services/appWallpaperService.js';
 import { getAppVersionInfo } from './services/appVersionService.js';
 import { JsonStore } from './storage/json-store.js';
@@ -79,7 +79,8 @@ export async function buildApp() {
   registerExpensiveHttpRateLimit(app);
 
   app.get('/health', async () => ({ ok: true }));
-  app.get('/api/app/version', async () => getAppVersionInfo());
+  app.get('/api/debug/websockets', async () => getWebSocketConnectionStats());
+  app.get<{ Querystring: { refresh?: string } }>('/api/app/version', async (request) => getAppVersionInfo(request.query.refresh === 'true'));
   app.get('/api/app/wallpaper', async () => getWallpaperInfo());
   app.get('/api/app/wallpaper/image', async (_request, reply) => {
     const wallpaper = await getWallpaperImage();

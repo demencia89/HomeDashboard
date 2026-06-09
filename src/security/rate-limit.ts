@@ -9,7 +9,14 @@ import {
   EXPENSIVE_HTTP_RATE_LIMIT_WINDOW_MS,
   WS_CONNECTION_RATE_LIMIT_MAX,
   WS_CONNECTION_RATE_LIMIT_WINDOW_MS,
+  WS_HEARTBEAT_INTERVAL_MS,
+  WS_HEARTBEAT_TIMEOUT_MS,
+  WS_MAX_CONNECTION_AGE_MS,
   WS_MAX_CONNECTIONS_PER_IP,
+  WS_MAX_METRICS_CONNECTIONS_PER_IP,
+  WS_MAX_NETHOGS_CONNECTIONS_PER_IP,
+  WS_MAX_TERMINAL_CONNECTIONS_PER_IP,
+  WS_MAX_VNC_CONNECTIONS_PER_IP,
   WS_MESSAGE_RATE_LIMIT_MAX,
   WS_MESSAGE_RATE_LIMIT_WINDOW_MS,
 } from '../config.js';
@@ -29,12 +36,21 @@ interface Bucket {
   resetAt: number;
 }
 
+export type WebSocketConnectionScope = 'metrics' | 'terminal' | 'nethogs' | 'vnc' | 'other';
+
+export interface WebSocketConnectionStats {
+  total: number;
+  ipBuckets: number;
+  scopes: Record<WebSocketConnectionScope, number>;
+}
+
 export const websocketMessageLimiterConfig: RateLimitConfig = {
   max: WS_MESSAGE_RATE_LIMIT_MAX,
   windowMs: WS_MESSAGE_RATE_LIMIT_WINDOW_MS,
 };
 
 const websocketConnectionsByIp = new Map<string, number>();
+const websocketConnectionsByScope = new Map<string, number>();
 let authFailureLimiter: FixedWindowRateLimiter | undefined;
 let expensiveHttpLimiter: FixedWindowRateLimiter | undefined;
 let websocketConnectionLimiter: FixedWindowRateLimiter | undefined;
@@ -146,7 +162,13 @@ export function registerExpensiveHttpRateLimit(app: FastifyInstance): void {
   });
 }
 
-export function acceptWebSocketConnection(request: FastifyRequest, socket: WebSocket, label: string, token: string): boolean {
+export function acceptWebSocketConnection(
+  request: FastifyRequest,
+  socket: WebSocket,
+  label: string,
+  token: string,
+  scope: WebSocketConnectionScope = 'other',
+): boolean {
   if (!isAllowedWebSocketOrigin(request)) {
     sendSocketJson(socket, {
       type: 'error',
@@ -167,6 +189,7 @@ export function acceptWebSocketConnection(request: FastifyRequest, socket: WebSo
 
   const key = rateLimitKey(request);
   const result = getWebsocketConnectionLimiter().consume(key);
+  const scopeKey = webSocketScopeKey(scope, key);
 
   if (!result.allowed) {
     sendSocketJson(socket, {
@@ -186,7 +209,19 @@ export function acceptWebSocketConnection(request: FastifyRequest, socket: WebSo
     return false;
   }
 
+  const maxConnectionsForScope = webSocketScopeMaxConnections(scope);
+
+  if (maxConnectionsForScope > 0 && (websocketConnectionsByScope.get(scopeKey) ?? 0) >= maxConnectionsForScope) {
+    sendSocketJson(socket, {
+      type: 'error',
+      message: `${label} connection limit exceeded.`,
+    });
+    socket.close(1008, `${label} connection limit exceeded.`);
+    return false;
+  }
+
   websocketConnectionsByIp.set(key, (websocketConnectionsByIp.get(key) ?? 0) + 1);
+  websocketConnectionsByScope.set(scopeKey, (websocketConnectionsByScope.get(scopeKey) ?? 0) + 1);
 
   let released = false;
   const release = () => {
@@ -202,11 +237,155 @@ export function acceptWebSocketConnection(request: FastifyRequest, socket: WebSo
     } else {
       websocketConnectionsByIp.set(key, current - 1);
     }
+
+    const currentForScope = websocketConnectionsByScope.get(scopeKey) ?? 0;
+
+    if (currentForScope <= 1) {
+      websocketConnectionsByScope.delete(scopeKey);
+    } else {
+      websocketConnectionsByScope.set(scopeKey, currentForScope - 1);
+    }
   };
 
   socket.once('close', release);
   socket.once('error', release);
+  superviseAcceptedWebSocket(request.log, socket, label, scope);
   return true;
+}
+
+export function getWebSocketConnectionStats(): WebSocketConnectionStats {
+  const scopes: Record<WebSocketConnectionScope, number> = {
+    metrics: 0,
+    terminal: 0,
+    nethogs: 0,
+    vnc: 0,
+    other: 0,
+  };
+
+  for (const [key, count] of websocketConnectionsByScope) {
+    const scope = key.split(':', 1)[0];
+
+    if (isWebSocketConnectionScope(scope)) {
+      scopes[scope] += count;
+    }
+  }
+
+  return {
+    total: [...websocketConnectionsByIp.values()].reduce((sum, count) => sum + count, 0),
+    ipBuckets: websocketConnectionsByIp.size,
+    scopes,
+  };
+}
+
+function superviseAcceptedWebSocket(log: FastifyRequest['log'], socket: WebSocket, label: string, scope: WebSocketConnectionScope): void {
+  const connectedAt = Date.now();
+  let lastPongAt = connectedAt;
+  let closed = false;
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const cleanup = () => {
+    if (closed) {
+      return;
+    }
+
+    closed = true;
+    clearInterval(heartbeatTimer);
+
+    if (maxAgeTimer) {
+      clearTimeout(maxAgeTimer);
+    }
+
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+    }
+
+    socket.removeListener('pong', onPong);
+  };
+
+  const terminate = (reason: string) => {
+    if (closed) {
+      return;
+    }
+
+    log.warn({ label, scope, reason }, 'Terminating stale WebSocket connection');
+    try {
+      socket.terminate();
+    } catch {
+      cleanup();
+    }
+  };
+
+  const requestClose = (code: number, reason: string) => {
+    if (closed) {
+      return;
+    }
+
+    log.info({ label, scope, reason }, 'Closing WebSocket connection');
+
+    try {
+      socket.close(code, reason);
+    } catch {
+      terminate(reason);
+      return;
+    }
+
+    closeTimer = setTimeout(() => terminate(reason), 5_000);
+    closeTimer.unref?.();
+  };
+
+  const onPong = () => {
+    lastPongAt = Date.now();
+  };
+
+  const heartbeatTimer = setInterval(() => {
+    if (closed || socket.readyState !== 1) {
+      return;
+    }
+
+    if (Date.now() - lastPongAt > WS_HEARTBEAT_TIMEOUT_MS) {
+      terminate('heartbeat timeout');
+      return;
+    }
+
+    try {
+      socket.ping();
+    } catch {
+      terminate('heartbeat ping failed');
+    }
+  }, WS_HEARTBEAT_INTERVAL_MS);
+  heartbeatTimer.unref?.();
+
+  const maxAgeTimer = WS_MAX_CONNECTION_AGE_MS > 0
+    ? setTimeout(() => requestClose(1000, 'WebSocket max age reached.'), WS_MAX_CONNECTION_AGE_MS)
+    : undefined;
+  maxAgeTimer?.unref?.();
+
+  socket.on('pong', onPong);
+  socket.once('close', cleanup);
+  socket.once('error', cleanup);
+}
+
+function webSocketScopeKey(scope: WebSocketConnectionScope, key: string): string {
+  return `${scope}:${key}`;
+}
+
+function webSocketScopeMaxConnections(scope: WebSocketConnectionScope): number {
+  switch (scope) {
+    case 'metrics':
+      return WS_MAX_METRICS_CONNECTIONS_PER_IP;
+    case 'terminal':
+      return WS_MAX_TERMINAL_CONNECTIONS_PER_IP;
+    case 'nethogs':
+      return WS_MAX_NETHOGS_CONNECTIONS_PER_IP;
+    case 'vnc':
+      return WS_MAX_VNC_CONNECTIONS_PER_IP;
+    case 'other':
+      return WS_MAX_CONNECTIONS_PER_IP;
+  }
+}
+
+function isWebSocketConnectionScope(value: string): value is WebSocketConnectionScope {
+  return value === 'metrics' || value === 'terminal' || value === 'nethogs' || value === 'vnc' || value === 'other';
 }
 
 export async function sendRateLimitError(reply: FastifyReply, result: RateLimitResult, message: string): Promise<void> {

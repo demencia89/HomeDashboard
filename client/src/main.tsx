@@ -68,6 +68,10 @@ import { TerminalSessions } from './components/TerminalPanel';
 import { VncPanel } from './components/VncPanel';
 
 const DISMISSED_UPDATE_VERSION_KEY = 'homedashboard.dismissedUpdateVersion';
+const METRICS_RECONNECT_BASE_MS = 2_000;
+const METRICS_RECONNECT_MAX_MS = 60_000;
+const METRICS_RECONNECT_POLICY_CLOSE_MS = 30_000;
+const METRICS_RECONNECT_JITTER_MS = 1_000;
 
 registerServiceWorker();
 
@@ -84,6 +88,7 @@ function App() {
   const [preferences, setPreferences] = useState<AppPreferences>(() => defaultAppPreferences());
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [appVersion, setAppVersion] = useState<AppVersionInfo | undefined>();
+  const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [appWallpaper, setAppWallpaper] = useState<AppWallpaperInfo>({ exists: false });
   const [wallpaperUploading, setWallpaperUploading] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState(() => readDismissedUpdateVersion());
@@ -175,25 +180,22 @@ function App() {
     updatePreferences((current) => ({ ...current, [key]: value }));
   }, [updatePreferences]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const checkForUpdates = useCallback(async () => {
+    setCheckingForUpdates(true);
 
-    void fetchAppVersion()
-      .then((versionInfo) => {
-        if (!cancelled) {
-          setAppVersion(versionInfo);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAppVersion(undefined);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    try {
+      setAppVersion(await fetchAppVersion({ refresh: true }));
+    } catch (error) {
+      setAppVersion(undefined);
+      setMessage(error instanceof Error ? error.message : 'Unable to check for updates.');
+    } finally {
+      setCheckingForUpdates(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void checkForUpdates();
+  }, [checkForUpdates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -323,42 +325,93 @@ function App() {
 
     let cancelled = false;
     let reconnectTimer: number | undefined;
+    let reconnectAttempt = 0;
+    let activeSocket: WebSocket | null = null;
 
-    const connect = () => {
-      if (cancelled) {
+    const clearReconnectTimer = () => {
+      if (reconnectTimer) {
+        window.clearTimeout(reconnectTimer);
+        reconnectTimer = undefined;
+      }
+    };
+
+    const canConnect = () => !document.hidden && window.navigator.onLine !== false;
+
+    const closeActiveSocket = () => {
+      const socket = activeSocket;
+      activeSocket = null;
+
+      if (metricsSocketRef.current === socket) {
+        metricsSocketRef.current = null;
+      }
+
+      if (socket && socket.readyState < WebSocket.CLOSING) {
+        socket.close(1000, 'Metrics stream paused.');
+      }
+    };
+
+    const scheduleReconnect = (code?: number) => {
+      if (cancelled || !canConnect()) {
         return;
       }
 
+      clearReconnectTimer();
+      const backoffMs = code === 1008
+        ? METRICS_RECONNECT_POLICY_CLOSE_MS
+        : Math.min(METRICS_RECONNECT_MAX_MS, METRICS_RECONNECT_BASE_MS * 2 ** reconnectAttempt);
+      const jitterMs = Math.floor(Math.random() * METRICS_RECONNECT_JITTER_MS);
+      reconnectAttempt += 1;
+      reconnectTimer = window.setTimeout(connect, backoffMs + jitterMs);
+    };
+
+    const connect = () => {
+      if (cancelled || !canConnect() || activeSocket) {
+        return;
+      }
+
+      clearReconnectTimer();
+
       void buildWebSocketUrl('/api/metrics/stream')
         .then((url) => {
-          if (cancelled) {
+          if (cancelled || !canConnect() || activeSocket) {
             return;
           }
 
           const socket = new WebSocket(url);
+          activeSocket = socket;
           metricsSocketRef.current = socket;
 
           socket.addEventListener('open', () => {
+            reconnectAttempt = 0;
             socket.send(JSON.stringify({ type: 'subscribe', serverIds, intervalMs: metricsStreamRefreshRate }));
           });
 
           socket.addEventListener('message', (event) => {
             const message = parseMetricsStreamMessage(event.data);
 
-            if (message?.type !== 'metrics:update') {
+            if (message?.type === 'metrics:update') {
+              setMetricsByServer((current) => ({ ...current, [message.serverId]: mergeMetricsSnapshot(current[message.serverId], message.metrics) }));
               return;
             }
 
-            setMetricsByServer((current) => ({ ...current, [message.serverId]: mergeMetricsSnapshot(current[message.serverId], message.metrics) }));
+            const errorMessage = parseMetricsStreamError(event.data);
+
+            if (errorMessage) {
+              setMessage(errorMessage);
+            }
           });
 
-          socket.addEventListener('close', () => {
+          socket.addEventListener('close', (event) => {
+            if (activeSocket === socket) {
+              activeSocket = null;
+            }
+
             if (metricsSocketRef.current === socket) {
               metricsSocketRef.current = null;
             }
 
             if (!cancelled) {
-              reconnectTimer = window.setTimeout(connect, 2000);
+              scheduleReconnect(event.code);
             }
           });
 
@@ -367,23 +420,36 @@ function App() {
           });
         })
         .catch(() => {
-          if (!cancelled) {
-            reconnectTimer = window.setTimeout(connect, 2000);
-          }
+          scheduleReconnect();
         });
     };
 
+    const pauseOrResume = () => {
+      if (!canConnect()) {
+        clearReconnectTimer();
+        closeActiveSocket();
+        return;
+      }
+
+      reconnectAttempt = 0;
+      void loadMetricsForServers(serverIds);
+      connect();
+    };
+
+    document.addEventListener('visibilitychange', pauseOrResume);
+    window.addEventListener('online', pauseOrResume);
+    window.addEventListener('offline', pauseOrResume);
     connect();
 
     return () => {
       cancelled = true;
-      if (reconnectTimer) {
-        window.clearTimeout(reconnectTimer);
-      }
-      metricsSocketRef.current?.close();
-      metricsSocketRef.current = null;
+      document.removeEventListener('visibilitychange', pauseOrResume);
+      window.removeEventListener('online', pauseOrResume);
+      window.removeEventListener('offline', pauseOrResume);
+      clearReconnectTimer();
+      closeActiveSocket();
     };
-  }, [activeMetricServerIds, metricsStreamRefreshRate]);
+  }, [activeMetricServerIds, loadMetricsForServers, metricsStreamRefreshRate]);
 
   const startCreate = () => {
     setEditing(false);
@@ -617,7 +683,7 @@ function App() {
               setDismissedUpdateVersion(version);
             }}
           />
-          <AppVersionFooter versionInfo={appVersion} />
+          <AppVersionFooter versionInfo={appVersion} checking={checkingForUpdates} onCheckUpdates={() => void checkForUpdates()} />
         </div>
       </aside>
 
@@ -858,13 +924,31 @@ function UpdateNotice({
   );
 }
 
-function AppVersionFooter({ versionInfo }: { versionInfo?: AppVersionInfo }) {
+function AppVersionFooter({
+  versionInfo,
+  checking,
+  onCheckUpdates,
+}: {
+  versionInfo?: AppVersionInfo;
+  checking: boolean;
+  onCheckUpdates: () => void;
+}) {
   const revision = versionInfo?.revision ? versionInfo.revision.slice(0, 7) : undefined;
 
   return (
     <div className="app-version">
       <span>Version</span>
       <strong>{versionInfo?.currentVersion ?? '...'}</strong>
+      <button
+        type="button"
+        className="app-version-check"
+        title="Check for updates"
+        aria-label="Check for updates"
+        onClick={onCheckUpdates}
+        disabled={checking}
+      >
+        <RefreshCw size={12} className={checking ? 'spin-icon' : undefined} />
+      </button>
       {revision && <code>{revision}</code>}
     </div>
   );
@@ -888,6 +972,24 @@ function writeDismissedUpdateVersion(version: string): void {
   } catch {
     // Update dismissal is best-effort; the notice can still be dismissed in memory.
   }
+}
+
+function parseMetricsStreamError(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<{ type: string; message: unknown }>;
+
+    if (parsed.type === 'metrics:error' && typeof parsed.message === 'string' && parsed.message.trim()) {
+      return parsed.message;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 createRoot(document.getElementById('root')!).render(
