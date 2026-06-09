@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4 - 2026-06-09
+
+### Fixed
+
+- Android and Termux hosts that deny `/proc/uptime` now fall back to parsing the `uptime` command, restoring uptime display on those devices.
+
 ## 1.2.3 - 2026-06-09
 
 ### Added

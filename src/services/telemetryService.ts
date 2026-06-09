@@ -310,8 +310,17 @@ if [ "$found_battery" -eq 0 ] && command -v acpi >/dev/null 2>&1; then
 fi
 `.trim();
 
+const UPTIME_SNAPSHOT_COMMAND = `
+uptime_output="$(cat /proc/uptime 2>/dev/null || true)"
+if [ -n "$uptime_output" ]; then
+  printf '%s\\n' "$uptime_output"
+elif command -v uptime >/dev/null 2>&1; then
+  uptime 2>/dev/null || true
+fi
+`.trim();
+
 function buildRawTelemetryCommand(): string {
-  return `export LC_ALL=C LANG=C; cat /proc/stat; echo '---DISKSTATS1---'; cat /proc/diskstats 2>/dev/null || true; echo '---NETDEV1---'; cat /proc/net/dev 2>/dev/null || true; sleep 0.25; echo '---CPU2---'; cat /proc/stat; echo '---DISKSTATS2---'; cat /proc/diskstats 2>/dev/null || true; echo '---NETDEV2---'; cat /proc/net/dev 2>/dev/null || true; echo '---MEM---'; cat /proc/meminfo; echo '---UPTIME---'; cat /proc/uptime 2>/dev/null || true; echo '---TEMP---'; ${buildRawTemperatureCommand()}; echo '---BATTERY---'; ${BATTERY_SNAPSHOT_COMMAND}; echo '---DISK---'; ${DISK_SNAPSHOT_COMMAND}; echo '---PROC---'; ${PROCESS_SNAPSHOT_COMMAND}; echo '---CONTAINERS---'; ${DOCKER_SNAPSHOT_COMMAND}`;
+  return `export LC_ALL=C LANG=C; cat /proc/stat; echo '---DISKSTATS1---'; cat /proc/diskstats 2>/dev/null || true; echo '---NETDEV1---'; cat /proc/net/dev 2>/dev/null || true; sleep 0.25; echo '---CPU2---'; cat /proc/stat; echo '---DISKSTATS2---'; cat /proc/diskstats 2>/dev/null || true; echo '---NETDEV2---'; cat /proc/net/dev 2>/dev/null || true; echo '---MEM---'; cat /proc/meminfo; echo '---UPTIME---'; ${UPTIME_SNAPSHOT_COMMAND}; echo '---TEMP---'; ${buildRawTemperatureCommand()}; echo '---BATTERY---'; ${BATTERY_SNAPSHOT_COMMAND}; echo '---DISK---'; ${DISK_SNAPSHOT_COMMAND}; echo '---PROC---'; ${PROCESS_SNAPSHOT_COMMAND}; echo '---CONTAINERS---'; ${DOCKER_SNAPSHOT_COMMAND}`;
 }
 
 export function buildTelemetryCommand(): string {
@@ -591,13 +600,48 @@ function parseCpuTimes(stat: string): { active: number; total: number } | undefi
 
 function parseUptime(uptimeOutput: string): number {
   const [rawUptime = ''] = uptimeOutput.trim().split(/\s+/);
-  const uptimeSeconds = Number.parseFloat(rawUptime);
+  const uptimeSeconds = /^\d+(?:\.\d+)?$/.test(rawUptime) ? Number.parseFloat(rawUptime) : Number.NaN;
 
   if (!Number.isFinite(uptimeSeconds) || uptimeSeconds < 0) {
-    return 0;
+    return parseUptimeCommandOutput(uptimeOutput);
   }
 
   return Math.round(uptimeSeconds);
+}
+
+function parseUptimeCommandOutput(uptimeOutput: string): number {
+  const normalized = uptimeOutput.trim().toLowerCase();
+  const upIndex = normalized.startsWith('up ') ? 0 : normalized.indexOf(' up ');
+
+  if (upIndex < 0) {
+    return 0;
+  }
+
+  const uptimeText = normalized.slice(upIndex + (upIndex === 0 ? 3 : 4));
+  let seconds = 0;
+  const daysMatch = /(\d+)\s+days?/.exec(uptimeText);
+  const hoursMatch = /(\d+)\s+(?:hours?|hrs?)/.exec(uptimeText);
+  const minutesMatch = /(\d+)\s+(?:minutes?|mins?)/.exec(uptimeText);
+  const clockMatch = /(?:^|[,\s])(\d+):(\d{2})(?:[,\s]|$)/.exec(uptimeText);
+
+  if (daysMatch) {
+    seconds += Number.parseInt(daysMatch[1], 10) * 24 * 60 * 60;
+  }
+
+  if (hoursMatch) {
+    seconds += Number.parseInt(hoursMatch[1], 10) * 60 * 60;
+  }
+
+  if (minutesMatch) {
+    seconds += Number.parseInt(minutesMatch[1], 10) * 60;
+  }
+
+  if (clockMatch) {
+    seconds += Number.parseInt(clockMatch[1], 10) * 60 * 60;
+    seconds += Number.parseInt(clockMatch[2], 10) * 60;
+  }
+
+  return seconds > 0 ? seconds : 0;
 }
 
 function parseMemory(meminfo: string): SystemMetrics['memory'] {
