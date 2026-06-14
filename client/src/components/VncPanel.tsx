@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type MutableRefObject, type RefObject } from 'react';
-import { CircleHelp, ExternalLink, Keyboard, Maximize2, Minimize2, Power, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { CircleHelp, ExternalLink, Keyboard, Maximize2, Minimize2, MousePointer2, Power, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import type RFB from '@novnc/novnc';
 import type { ServerProfile, SystemdServiceAction, VncServiceCandidate, VncStatusResponse } from '../types';
 import { controlSystemdService, controlVncService, getVncStatus } from '../lib/api';
@@ -60,7 +60,7 @@ export function VncPanel({
   const [port, setPort] = useState(initialPort || '5900');
   const [hostEdited, setHostEdited] = useState(Boolean(initialHost || initialPort));
   const [password, setPassword] = useState('');
-  const [viewOnly] = useState(false);
+  const [viewOnly, setViewOnly] = useState(true);
   const [connectionState, setConnectionState] = useState<VncConnectionState>('idle');
   const [lastDisconnectUnexpected, setLastDisconnectUnexpected] = useState(false);
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
@@ -124,6 +124,7 @@ export function VncPanel({
     setPort(initialPort || '5900');
     setHostEdited(Boolean(initialHost || initialPort));
     setPassword('');
+    setViewOnly(true);
     setViewerMagnified(initialMagnified);
     setSelectedServiceKey('');
     setPendingServiceAction('');
@@ -212,6 +213,18 @@ export function VncPanel({
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to toggle fullscreen.');
     }
+  }, []);
+
+  const toggleRemoteInput = useCallback(() => {
+    setViewOnly((current) => {
+      const next = !current;
+
+      if (!next) {
+        window.setTimeout(() => rfbRef.current?.focus(), 0);
+      }
+
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -633,6 +646,17 @@ export function VncPanel({
                 <ExternalLink size={14} />
               </button>
             )}
+            <button
+              type="button"
+              className={`container-action restart vnc-input-toggle ${viewOnly ? '' : 'active'}`}
+              title={viewOnly ? 'Enable remote input' : 'Disable remote input'}
+              aria-label={viewOnly ? 'Enable remote input' : 'Disable remote input'}
+              onClick={toggleRemoteInput}
+              disabled={!connected}
+            >
+              <MousePointer2 size={14} />
+              <span>{viewOnly ? 'Input off' : 'Input on'}</span>
+            </button>
             <button type="button" className="container-action restart" title="Send Ctrl Alt Del" onClick={() => rfbRef.current?.sendCtrlAltDel()} disabled={!connected || viewOnly}>
               <Keyboard size={14} />
             </button>

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.5 - 2026-06-13
+
+### Changed
+
+- VNC sessions now start in view-only mode with an explicit input toggle for safer remote desktop control.
+- The bundled wayvnc user service now waits for a Wayland session, restarts consistently, and uses rendered cursor mode with resizing disabled.
+
 ## 1.2.4 - 2026-06-09
 
 ### Fixed

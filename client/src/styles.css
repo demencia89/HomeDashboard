@@ -3808,6 +3808,22 @@ button.vnc-health-chip:disabled {
   gap: 8px;
 }
 
+.vnc-viewer-toolbar .vnc-input-toggle {
+  width: auto;
+  min-width: 92px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 9px;
+}
+
+.vnc-viewer-toolbar .vnc-input-toggle span {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .vnc-viewer-surface {
   position: relative;
   overflow: auto;

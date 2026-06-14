@@ -120,7 +120,7 @@ PartOf=graphical-session.target
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/homedashboard-wayvnc
-Restart=on-failure
+Restart=always
 RestartSec=2
 
 [Install]
@@ -130,18 +130,26 @@ WantedBy=default.target
 const WAYVNC_LAUNCHER = `#!/bin/sh
 set -e
 export XDG_RUNTIME_DIR="\${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-if [ -z "\${WAYLAND_DISPLAY:-}" ]; then
+reported_wait="no"
+while [ -z "\${WAYLAND_DISPLAY:-}" ]; do
   for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
     [ -S "$socket" ] || continue
     export WAYLAND_DISPLAY="\${socket##*/}"
     break
   done
-fi
-if [ -z "\${WAYLAND_DISPLAY:-}" ]; then
-  printf '%s\\n' 'No Wayland socket found. Log in to the Wayland desktop first.' >&2
-  exit 1
-fi
-exec /usr/bin/wayvnc 127.0.0.1 5900
+
+  if [ -n "\${WAYLAND_DISPLAY:-}" ]; then
+    break
+  fi
+
+  if [ "$reported_wait" = "no" ]; then
+    printf '%s\\n' 'Waiting for a Wayland desktop socket. Log in to the Wayland desktop first.' >&2
+    reported_wait="yes"
+  fi
+
+  sleep 2
+done
+exec /usr/bin/wayvnc -r -R 127.0.0.1 5900
 `;
 
 export async function getVncSetupInfo(
