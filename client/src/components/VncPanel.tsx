@@ -38,6 +38,7 @@ export function VncPanel({
   initialHost,
   initialPort,
   initialMagnified = true,
+  initialViewOnly = true,
 }: {
   server?: ServerProfile;
   visible: boolean;
@@ -45,6 +46,7 @@ export function VncPanel({
   initialHost?: string;
   initialPort?: string;
   initialMagnified?: boolean;
+  initialViewOnly?: boolean;
 }) {
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const viewerShellRef = useRef<HTMLElement | null>(null);
@@ -60,7 +62,7 @@ export function VncPanel({
   const [port, setPort] = useState(initialPort || '5900');
   const [hostEdited, setHostEdited] = useState(Boolean(initialHost || initialPort));
   const [password, setPassword] = useState('');
-  const [viewOnly, setViewOnly] = useState(true);
+  const [viewOnly, setViewOnly] = useState(initialViewOnly);
   const [connectionState, setConnectionState] = useState<VncConnectionState>('idle');
   const [lastDisconnectUnexpected, setLastDisconnectUnexpected] = useState(false);
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
@@ -124,7 +126,7 @@ export function VncPanel({
     setPort(initialPort || '5900');
     setHostEdited(Boolean(initialHost || initialPort));
     setPassword('');
-    setViewOnly(true);
+    setViewOnly(initialViewOnly);
     setViewerMagnified(initialMagnified);
     setSelectedServiceKey('');
     setPendingServiceAction('');
@@ -132,7 +134,7 @@ export function VncPanel({
     setPendingGraphicalServiceAction('');
     popoutAutoConnectAttemptedRef.current = false;
     disconnectVnc();
-  }, [disconnectVnc, initialHost, initialMagnified, initialPort, server?.id]);
+  }, [disconnectVnc, initialHost, initialMagnified, initialPort, initialViewOnly, server?.id]);
 
   useEffect(() => {
     rfbRef.current && (rfbRef.current.viewOnly = viewOnly);
@@ -512,6 +514,10 @@ export function VncPanel({
 
     if (viewerMagnified) {
       params.set('follow', 'height');
+    }
+
+    if (!viewOnly) {
+      params.set('input', 'on');
     }
 
     const query = params.toString();

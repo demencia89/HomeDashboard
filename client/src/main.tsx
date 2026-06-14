@@ -1011,6 +1011,7 @@ function VncPopoutApp({ serverId }: { serverId: string }) {
   const initialHost = params.get('host') ?? undefined;
   const initialPort = params.get('port') ?? undefined;
   const initialMagnified = params.get('follow') !== 'fit';
+  const initialViewOnly = params.get('input') !== 'on';
 
   useEffect(() => {
     let cancelled = false;
@@ -1059,7 +1060,17 @@ function VncPopoutApp({ serverId }: { serverId: string }) {
 
   return (
     <main className="vnc-popout-shell">
-      {server ? <VncPanel server={server} visible popout initialHost={initialHost} initialPort={initialPort} initialMagnified={initialMagnified} /> : null}
+      {server ? (
+        <VncPanel
+          server={server}
+          visible
+          popout
+          initialHost={initialHost}
+          initialPort={initialPort}
+          initialMagnified={initialMagnified}
+          initialViewOnly={initialViewOnly}
+        />
+      ) : null}
     </main>
   );
 }
